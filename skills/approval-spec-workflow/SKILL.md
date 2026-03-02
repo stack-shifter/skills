@@ -1,13 +1,26 @@
 ---
 name: approval-spec-workflow
-description: Enforces an approval-gated, two-phase Spec workflow. Use when a prompt starts with "Spec:" to produce a detailed spec inline in the terminal, then implement only after explicit approval.
+description: Enforces an approval-gated, two-phase Spec workflow. Use when a prompt starts with "Spec:" or equivalent phrasing such as "spec:", "SPEC:", "write a spec first", "plan this before coding", or any explicit request to define the approach before implementation. Produce a detailed spec inline in the terminal, then implement only after explicit approval.
 ---
 
 # Spec Workflow Skill
 
 ## When to Use
 
-Trigger this workflow only when the user’s prompt begins with `Spec:`. Otherwise, proceed with normal execution.
+Trigger this workflow when the user explicitly asks for a spec-first or plan-first workflow, including:
+
+- prompts beginning with `Spec:`, `spec:`, or `SPEC:`
+- requests such as "write a spec first"
+- requests such as "plan this before coding"
+- any explicit instruction to present the approach for approval before implementation
+
+Otherwise, proceed with normal execution.
+
+## Scope Threshold
+
+Default to this workflow for changes that are cross-file, high-risk, user-visible, architectural, operational, or likely to benefit from review before implementation.
+
+Do not force a full spec for clearly trivial, low-risk work unless the user explicitly requests Spec mode.
 
 ## Core Principle
 
@@ -33,7 +46,16 @@ During Phase 1, the assistant must not:
 
 If additional context is required, only read/inspect existing materials and reference them by file path in the spec.
 
+Allowed during Phase 1:
+
+- reading files
+- searching the repository
+- running non-mutating inspection commands
+- running read-only checks that do not modify files or environment state
+
 ## Spec Output Requirements
+
+Keep the spec concise by default. Aim for a short, reviewable spec. Expand only for high-risk, cross-cutting, or ambiguous work.
 
 Output a Markdown-formatted specification in the terminal with the following sections (keep concise; expand only if high-risk):
 
@@ -87,6 +109,8 @@ Output a Markdown-formatted specification in the terminal with the following sec
 
 If requirements are ambiguous, ask focused clarifying questions and revise the spec accordingly.
 
+If there is enough context to produce a useful first-pass spec, do that instead of blocking on questions. Put unresolved items in `Risks & Questions`.
+
 ---
 
 # Approval Gate (Required)
@@ -97,6 +121,14 @@ After producing the spec, the assistant must stop and ask exactly:
 
 - If the user replies **Approve: yes**: proceed to Phase 2.
 - If the user replies **Approve: no**: ask what to change, revise the spec (still Phase 1), then request approval again.
+
+Treat the following as explicit approval equivalents:
+
+- the exact reply `Approve: yes`
+- a follow-up prompt that clearly includes an approval marker such as `(Approved)`
+- a direct instruction to proceed with implementation after the spec has been reviewed
+
+If the user response is ambiguous, do not implement yet. Ask for explicit approval.
 
 ## Auto-Accept / Non-Interactive Environments
 
@@ -139,6 +171,7 @@ Once approved:
 - Implement strictly according to the approved spec.
 - Prefer incremental changes that maintain a working state.
 - Align outputs with the approved scope and constraints.
+- Call out any material deviation from the approved spec before or during implementation.
 
 ## Handling Deviations
 

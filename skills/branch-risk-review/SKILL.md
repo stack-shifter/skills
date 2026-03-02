@@ -1,6 +1,6 @@
 ---
 name: branch-risk-review
-description: Compares the current branch to main to identify potential breaking changes, introduced bugs, security regressions, and operational/performance risks. Use when reviewing PRs, preparing releases, or when asked “what changed vs main?”.
+description: Compares the current branch to main to identify breaking changes, introduced bugs, security regressions, and operational or performance risks. Use when reviewing PRs, preparing releases, auditing branch readiness, or when asked “what changed vs main?”, “is this safe to merge?”, “what are the risks in this branch?”, or similar questions about branch impact versus a base branch.
 ---
 
 ## Purpose
@@ -12,6 +12,8 @@ This skill provides a structured, risk-focused comparison of the current branch 
 - Performance/cost/reliability impacts
 - Operational/deployment risks
 - Test/coverage gaps
+
+The goal is not just to summarize the diff. The goal is to identify what changed, why it matters, how confident the analysis is, and what should be verified before merge or release.
 
 ## When to Use
 
@@ -29,6 +31,35 @@ If the user specifies a different base (e.g., `develop`, release branch, tag), u
 - Default head: current checked-out branch / `HEAD`
 - If the repo uses `master` instead of `main`, detect and use the correct base.
 - Assume a git repository is available unless stated otherwise.
+
+## Output Format
+
+The final output must include these sections:
+
+1. Change Summary
+2. Overall Risk
+3. Top Findings
+4. Breaking Changes
+5. Regression / Bug Risks
+6. Security / Auth Risks
+7. Data / Migration Risks
+8. Performance / Reliability Risks
+9. Operational / Deployment Risks
+10. Test & Validation Notes
+11. Recommended Follow-ups
+
+`Overall Risk` must be one of: `low`, `medium`, `high`
+
+For each flagged item include:
+
+- Severity: `high`, `medium`, or `low`
+- Confidence: `high`, `medium`, or `low`
+- Evidence: specific file paths, symbols, contracts, or tests where possible
+- Confirmed change: what the diff definitely changed
+- Predicted impact: what could fail or degrade because of that change
+- Recommendation: a concrete next step such as a test, mitigation, rollout guard, or docs update
+
+If no material risks are found, say so explicitly and still include residual uncertainty, review scope, and prudent follow-up verification.
 
 ## Workflow
 
@@ -63,9 +94,18 @@ If there are many files, prioritize review of:
 - Infra/deploy configs
 - Core business logic paths
 
+For very large diffs, explicitly state when the review is partial and name the areas prioritized. Do not imply exhaustive review if only hot spots were examined.
+
 ### 3) Classify Risk Areas
 
 Explicitly evaluate and report in each section below.
+
+Distinguish between:
+
+- **Confirmed change**: what the diff definitely changed
+- **Predicted risk**: what might fail because of that change
+
+Do not present speculation as certainty. Lower confidence when the evidence is indirect, when runtime behavior depends on unreviewed code paths, or when tests are missing.
 
 #### A) Breaking Changes
 
@@ -174,25 +214,30 @@ Heuristics:
 - Medium risk: tests exist but don’t cover the changed pathways
 - Lower risk: tests expanded and include negative cases
 
-### 5) Produce a Structured Deliverable
+Also call out when existing tests appear to cover the change well. This skill should report both confidence-building evidence and gaps.
 
-The final output must include these sections:
+### 5) Produce a Risk Review, Not Just a Diff Review
 
-1. Change Summary
-2. Breaking Changes
-3. Regression / Bug Risks
-4. Security / Auth Risks
-5. Data / Migration Risks
-6. Performance / Reliability Risks
-7. Operational / Deployment Risks
-8. Test & Validation Notes
-9. Recommended Follow-ups (ordered by risk)
+Prefer concrete, evidence-backed findings over generic warnings.
 
-For each flagged item include:
-- Severity: High / Medium / Low
-- Evidence: file paths + brief description of the diff area
-- Impact: what breaks / who is affected
-- Recommendation: concrete next step (tests, refactor, feature flag, docs, rollback strategy)
+Good:
+
+- "Route response schema changed in `src/api/orders.ts`; contract test was not updated, so clients relying on `status` may break."
+
+Bad:
+
+- "API changes may cause regressions."
+
+When evidence is insufficient, say what you found and what remains uncertain.
+
+### 6) No-Findings Behavior
+
+If no material risks are identified:
+
+- state `No material risks found from the reviewed diff`
+- mention review scope
+- mention residual uncertainty, if any
+- list any missing verification work that would still be prudent before merge or release
 
 ## Optional Enhancements
 
@@ -206,3 +251,4 @@ Use when helpful:
 - Do not label something “breaking” without pointing to a specific contract surface (API/interface/schema/config).
 - Do not assert “bug introduced” as fact unless a concrete defect is evident; frame as risk.
 - Prefer high-signal findings over exhaustive line-by-line commentary; prioritize shared/public surfaces and production paths.
+- Separate confirmed change from predicted failure mode so the reader can tell evidence from inference.
