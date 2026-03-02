@@ -10,19 +10,18 @@ Create a single `src/app.ts` that loads environment variables, wires middleware,
 
 ```ts
 // src/app.ts
-
-// Load env file before anything else reads process.env.
-// In production, env vars are injected directly — skip file loading.
-if (process.env.NODE_ENV !== 'production') {
-  process.loadEnvFile(`.env.${process.env.NODE_ENV || 'development'}`);
-}
-
 import express, { Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import itemRoutes from './routes/item.route';
 import { globalErrorHandler } from './middlewares/global-error.middleware';
 import { healthCheck } from './controllers/health.controller';
+
+// Load env file after imports and before app setup.
+// In production, env vars are injected directly — skip file loading.
+if (process.env.NODE_ENV !== 'production') {
+  process.loadEnvFile(`.env.${process.env.NODE_ENV || 'development'}`);
+}
 
 const app: Express = express();
 
@@ -75,11 +74,29 @@ AWS_PROFILE=
 DYNAMODB_ENDPOINT=
 ```
 
+## Suggested Scripts
+
+For new TypeScript projects, use a simple `tsx watch` development script:
+
+```json
+{
+  "scripts": {
+    "dev": "tsx watch src/app.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/app.js"
+  }
+}
+```
+
+If the repository already uses `nodemon`, `ts-node-dev`, or another runner, keep the local convention unless there is a clear reason to standardize.
+
 ## Guidance
 
-- `process.loadEnvFile()` is built into Node.js 22.9+ / Node.js 24 — no `dotenv` package needed
-- The `loadEnvFile` call must appear before any `import` that reads `process.env` at module load time; place it at the very top of `app.ts` before other imports, or in a dedicated `src/env.ts` loaded first
+- `process.loadEnvFile()` is built into modern Node releases — no `dotenv` package needed
+- Load the env file immediately after imports in `app.ts`, and avoid module-level `process.env` reads in imported files before bootstrap runs
 - Set `trust proxy` so `req.ip` and `req.ips` reflect the real client IP behind a load balancer
 - Register `globalErrorHandler` last — Express 5 auto-forwards async rejections to it
 - Use `/v1/` prefix on all resource routes; the health check is public with no auth middleware
 - In Express 5, `express.json()` and `express.urlencoded()` are built-in; no `body-parser` needed
+- For new apps, add graceful shutdown for HTTP server, database pool, and AWS clients if the repo does not already provide it
+- Follow the repo's existing development runner first; for new TypeScript apps prefer `tsx watch src/app.ts` over `nodemon`

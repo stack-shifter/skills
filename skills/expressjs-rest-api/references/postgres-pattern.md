@@ -26,8 +26,8 @@ export const items = pgTable('items', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 128 }).notNull(),
   description: text('description').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 export type ItemRow = typeof items.$inferSelect;
@@ -53,7 +53,7 @@ export interface Repository<T> {
 
 ```ts
 // src/data/item.repository.ts
-import { eq, gt, asc } from 'drizzle-orm';
+import { and, asc, eq, gt, or } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { Repository } from './repository.interface';
 import { CursorPagination, decodeCursor, encodeCursor } from './pagination';
@@ -84,13 +84,22 @@ export class ItemRepository implements Repository<Item> {
     const limit = query?.limit || 10;
 
     try {
-      const cursorId = query?.cursor ? (decodeCursor(query.cursor).key as string) : undefined;
+      const cursor = query?.cursor
+        ? (decodeCursor(query.cursor).key as { createdAt: string; id: string })
+        : undefined;
 
       const rows = await this.db
         .select()
         .from(items)
-        .where(cursorId ? gt(items.id, cursorId) : undefined)
-        .orderBy(asc(items.id))
+        .where(
+          cursor
+            ? or(
+                gt(items.createdAt, new Date(cursor.createdAt)),
+                and(eq(items.createdAt, new Date(cursor.createdAt)), gt(items.id, cursor.id))
+              )
+            : undefined
+        )
+        .orderBy(asc(items.createdAt), asc(items.id))
         .limit(limit + 1); // fetch one extra to determine hasNextPage
 
       const hasNextPage = rows.length > limit;
@@ -104,7 +113,10 @@ export class ItemRepository implements Repository<Item> {
       };
 
       if (hasNextPage && lastRow) {
-        result.cursor = encodeCursor(lastRow.id);
+        result.cursor = encodeCursor({
+          createdAt: lastRow.createdAt.toISOString(),
+          id: lastRow.id,
+        });
       }
 
       return result;
@@ -237,6 +249,11 @@ DATABASE_URL=postgres://postgres:password@localhost:5432/myapp_dev
 DATABASE_URL=postgres://user:pass@your-host:5432/myapp_prod
 ```
 
+## Guidance
+
+- For UUID primary keys, do not paginate by `id` alone when using random UUID generation; order by a stable monotonic column such as `createdAt` plus `id`
+- Keep the cursor payload aligned with the sort order so pagination remains deterministic
+
 ## Migration Commands
 
 ```bash
@@ -278,4 +295,3 @@ volumes:
 - The cursor pagination example uses `id`-based keyset pagination — adjust the cursor column to match the primary sort order of your query
 - For transactions, use `db.transaction(async (tx) => { ... })`
 - Run `drizzle-kit generate` after every schema change and commit the generated migration files
-

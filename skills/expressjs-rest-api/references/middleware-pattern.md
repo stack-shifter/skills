@@ -84,12 +84,23 @@ export const authorize = (allowedGroups?: string[]): RequestHandler =>
 ```ts
 // src/middlewares/validation.middleware.ts
 import { NextFunction, Request, Response } from 'express';
-import { ZodObject } from 'zod/v4';
+import { ZodTypeAny } from 'zod/v4';
 import { $ZodIssue } from 'zod/v4/core';
 import { ErrorResponseBuilder, ErrorType } from '../models/error.model';
 import { StatusCode } from '../utilities/status-code';
 
-export const validateBody = (schema: ZodObject) =>
+type ValidatedRequestData = {
+  body?: unknown;
+  params?: unknown;
+  query?: unknown;
+};
+
+const withValidated = (response: Response): ValidatedRequestData => {
+  response.locals.validated ??= {};
+  return response.locals.validated as ValidatedRequestData;
+};
+
+export const validateBody = (schema: ZodTypeAny) =>
   (request: Request, response: Response, next: NextFunction): void => {
     const result = schema.safeParse(request.body);
     if (!result.success) {
@@ -103,10 +114,11 @@ export const validateBody = (schema: ZodObject) =>
       );
       return;
     }
+    withValidated(response).body = result.data;
     next();
   };
 
-export const validateQuery = (schema: ZodObject) =>
+export const validateQuery = (schema: ZodTypeAny) =>
   (request: Request, response: Response, next: NextFunction): void => {
     const result = schema.safeParse(request.query);
     if (!result.success) {
@@ -120,10 +132,11 @@ export const validateQuery = (schema: ZodObject) =>
       );
       return;
     }
+    withValidated(response).query = result.data;
     next();
   };
 
-export const validateParams = (schema: ZodObject) =>
+export const validateParams = (schema: ZodTypeAny) =>
   (request: Request, response: Response, next: NextFunction): void => {
     const result = schema.safeParse(request.params);
     if (!result.success) {
@@ -137,6 +150,7 @@ export const validateParams = (schema: ZodObject) =>
       );
       return;
     }
+    withValidated(response).params = result.data;
     next();
   };
 
@@ -163,6 +177,11 @@ export const globalErrorHandler: ErrorRequestHandler = (
   response: Response,
   next: NextFunction
 ) => {
+  if (response.headersSent) {
+    next(error);
+    return;
+  }
+
   console.error('Global Error Handler', error);
 
   response.status(StatusCode.INTERNAL_SERVER_ERROR).json(
@@ -181,5 +200,6 @@ export const globalErrorHandler: ErrorRequestHandler = (
 - `authorize()` with no arguments authenticates any valid Cognito token; pass group names to also authorize
 - `authorize` attaches the decoded payload to `request.user` for downstream access
 - Validation middleware returns early on failure — no `next()` on the error path
+- Store parsed Zod output on `response.locals.validated` instead of mutating `req.query`
 - `globalErrorHandler` must declare all four parameters `(err, req, res, next)` or Express ignores it
 - In Express 5, unhandled async rejections in route handlers reach `globalErrorHandler` automatically

@@ -288,6 +288,7 @@ Prefer methods that reflect domain behavior, for example:
 - relation-specific helpers when needed
 
 Do not design new repositories around DynamoDB access patterns such as partition keys, sort keys, or GSI lookups.
+For cursor pagination, do not assume UUID v4 primary keys are time-ordered. Prefer a stable ordered tuple such as `created_at` plus `id`, and make the cursor carry both values.
 
 ## Response and Error Rules
 

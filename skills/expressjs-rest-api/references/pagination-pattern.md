@@ -60,8 +60,9 @@ return result;
 ## Usage in a Controller
 
 ```ts
-const limit = request.query['limit'] ? parseInt(request.query['limit'] as string) : undefined;
-const cursor = request.query['cursor'] as string | undefined;
+const query = response.locals.validated?.query as { limit?: number; cursor?: string } | undefined;
+const limit = query?.limit;
+const cursor = query?.cursor;
 
 const paginated = await itemRepository.findAll({ limit, cursor });
 response.status(StatusCode.OK).json(paginated);
@@ -73,3 +74,4 @@ response.status(StatusCode.OK).json(paginated);
 - Validate the cursor format in the model schema with `z.string().regex(/^[A-Za-z0-9+/=]+$/)` to catch malformed base64 early
 - Cognito pagination tokens use `encodeURIComponent` / `decodeURIComponent` instead of base64 — use this pattern only for DynamoDB `LastEvaluatedKey` cursors
 - Default limit to `10` when not provided; cap at `60` in the Zod schema
+- For SQL-backed pagination, encode a stable ordered cursor key, not a random UUID by itself

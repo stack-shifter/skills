@@ -73,6 +73,13 @@ export class AuthorizationError extends Error {
     this.name = 'AuthorizationError';
   }
 }
+
+export class ConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConflictError';
+  }
+}
 ```
 
 ## Error Response Model
@@ -130,9 +137,83 @@ export class ErrorResponseBuilder {
 }
 ```
 
+## Global Error Mapping
+
+```ts
+// src/middlewares/global-error.middleware.ts
+import { ErrorRequestHandler } from 'express';
+import { ErrorResponseBuilder, ErrorType } from '../models/error.model';
+import { StatusCode } from '../utilities/status-code';
+
+export const globalErrorHandler: ErrorRequestHandler = (error, request, response, next) => {
+  if (response.headersSent) {
+    next(error);
+    return;
+  }
+
+  switch (error.name) {
+    case 'ValidationError':
+      response.status(StatusCode.BAD_REQUEST).json(
+        new ErrorResponseBuilder()
+          .setType(ErrorType.VALIDATION_ERROR)
+          .setStatus(StatusCode.BAD_REQUEST)
+          .setMessage(error.message)
+          .build()
+      );
+      return;
+    case 'AuthenticationError':
+      response.status(StatusCode.UNAUTHORIZED).json(
+        new ErrorResponseBuilder()
+          .setType(ErrorType.UNAUTHORIZED_ERROR)
+          .setStatus(StatusCode.UNAUTHORIZED)
+          .setMessage(error.message)
+          .build()
+      );
+      return;
+    case 'AuthorizationError':
+      response.status(StatusCode.FORBIDDEN).json(
+        new ErrorResponseBuilder()
+          .setType(ErrorType.FORBIDDEN_ERROR)
+          .setStatus(StatusCode.FORBIDDEN)
+          .setMessage(error.message)
+          .build()
+      );
+      return;
+    case 'NotFoundError':
+      response.status(StatusCode.NOT_FOUND).json(
+        new ErrorResponseBuilder()
+          .setType(ErrorType.NOT_FOUND_ERROR)
+          .setStatus(StatusCode.NOT_FOUND)
+          .setMessage(error.message)
+          .build()
+      );
+      return;
+    case 'ConflictError':
+      response.status(StatusCode.CONFLICT).json(
+        new ErrorResponseBuilder()
+          .setType(ErrorType.EXISTS_ERROR)
+          .setStatus(StatusCode.CONFLICT)
+          .setMessage(error.message)
+          .build()
+      );
+      return;
+    default:
+      response.status(StatusCode.INTERNAL_SERVER_ERROR).json(
+        new ErrorResponseBuilder()
+          .setType(ErrorType.INTERNAL_SERVER_ERROR)
+          .setStatus(StatusCode.INTERNAL_SERVER_ERROR)
+          .setMessage('An unexpected error occurred. Please check the server logs for more details and try again.')
+          .setDetails({ method: request.method, route: request.originalUrl })
+          .build()
+      );
+  }
+};
+```
+
 ## Guidance
 
 - Always set `this.name` explicitly in each class — controllers branch on `error.name` (string), not `instanceof`, so the name must survive module boundary crossings
 - Add domain-specific error subclasses (e.g. `GroupNotFoundError extends IdentityError`) as needed rather than reusing generic errors
 - `ErrorResponseBuilder` uses a fluent builder pattern; chain `setType`, `setStatus`, `setMessage`, and optionally `setDetails` before calling `build()`
 - Keep `ErrorType` enum values as human-readable strings — they appear in API responses
+- In new fallback code, centralize HTTP mapping in `globalErrorHandler` instead of repeating the same response builders in every controller

@@ -77,5 +77,9 @@ export const dbContext = new DatabaseContext(db);
 - Reuse the shared `db` instance and `dbContext`; do not create ad hoc connections.
 - Model constraints and indexes in Drizzle where possible.
 - Use repository methods that reflect domain behavior, not DynamoDB key access patterns.
+- Treat `uuid().defaultRandom()` primary keys as identifiers, not chronological cursors.
+- For cursor pagination over time-ordered results, order by a stable tuple such as `created_at` plus `id`, encode both values in the cursor, and add a matching composite index.
+- Do not paginate with `WHERE id > :cursor ORDER BY id` or equivalent patterns when `id` is a UUID v4, because random UUID ordering does not reflect insertion time.
+- When sorting by `created_at`, always include a unique tiebreaker such as `id` so pagination stays stable when multiple rows share the same timestamp.
 - Generate migrations through the repository's Drizzle workflow instead of writing unrelated SQL by hand.
 - Do not reintroduce DynamoDB-shaped data modeling or dual writes.

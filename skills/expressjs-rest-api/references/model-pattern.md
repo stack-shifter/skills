@@ -80,3 +80,4 @@ export type BaseQuery = {
 - Use `z.coerce.number()` for query params — they arrive as strings from Express
 - Keep one file per entity: types, DTOs, and all Zod schemas together
 - Create separate schema objects per validation target: one for `id` params, one for query, one for body
+- Expect validated and coerced values to be consumed from `response.locals.validated`, especially for query parsing in Express 5

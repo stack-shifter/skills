@@ -112,15 +112,51 @@ export class ItemRepository implements Repository<Item> {
 
   async update(id: string, entity: Partial<Item>): Promise<Item> {
     try {
-      await this.dbContext.update({
+      const updates: string[] = [];
+      const names: Record<string, string> = {};
+      const values: Record<string, unknown> = {};
+
+      if (entity.name !== undefined) {
+        updates.push('#name = :name');
+        names['#name'] = 'Name';
+        values[':name'] = entity.name;
+      }
+
+      if (entity.description !== undefined) {
+        updates.push('#desc = :desc');
+        names['#desc'] = 'Description';
+        values[':desc'] = entity.description;
+      }
+
+      if (updates.length === 0) {
+        const current = await this.findById(id);
+        if (!current) throw new DatabaseError('Item not found');
+        return current;
+      }
+
+      const response = await this.dbContext.update({
         TableName: process.env.DYNAMODB_TABLE,
         Key: { PK: `ITEM#${id}`, SK: `METADATA#${id}` },
-        UpdateExpression: 'SET #name = :name, #desc = :desc',
-        ExpressionAttributeNames: { '#name': 'Name', '#desc': 'Description' },
-        ExpressionAttributeValues: { ':name': entity.name, ':desc': entity.description },
+        UpdateExpression: `SET ${updates.join(', ')}`,
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: values,
+        ConditionExpression: 'attribute_exists(PK) AND attribute_exists(SK)',
+        ReturnValues: 'ALL_NEW',
       });
-      return entity as Item;
+
+      if (!response.Attributes) {
+        throw new DatabaseError('Item not found');
+      }
+
+      return {
+        id: response.Attributes['PK'].split('#')[1],
+        name: response.Attributes['Name'],
+        description: response.Attributes['Description'],
+      };
     } catch (error: any) {
+      if (error.name === 'ConditionalCheckFailedException') {
+        throw new DatabaseError('Item not found');
+      }
       loggerService.error('Error updating item', error);
       throw new DatabaseError('Error updating item');
     }
@@ -131,8 +167,12 @@ export class ItemRepository implements Repository<Item> {
       await this.dbContext.delete({
         TableName: process.env.DYNAMODB_TABLE,
         Key: { PK: `ITEM#${id}`, SK: `METADATA#${id}` },
+        ConditionExpression: 'attribute_exists(PK) AND attribute_exists(SK)',
       });
     } catch (error: any) {
+      if (error.name === 'ConditionalCheckFailedException') {
+        throw new DatabaseError('Item not found');
+      }
       loggerService.error('Error deleting item', error);
       throw new DatabaseError('Error deleting item');
     }
@@ -172,3 +212,4 @@ export const itemRepository = new ItemRepository(dynamoDBClient);
 - Use `ExpressionAttributeNames` to avoid DynamoDB reserved word conflicts in update expressions
 - In production, supply no credentials — the SDK picks up the IAM role from the compute environment
 - `DYNAMODB_ENDPOINT` in `.env.development` enables a local DynamoDB container via Docker Compose
+- Prefer `Query` over `Scan` when the repository has a known access pattern; use `Scan` only as a generic fallback

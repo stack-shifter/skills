@@ -24,7 +24,9 @@ Portable fallback references live in `references/`. Read only the file needed fo
 
 ## Express 5 Key Behaviors
 
-Express 5 requires **Node.js 24 or higher**.
+Express 5 requires **Node.js 18 or higher**.
+
+For new projects, this skill's default baseline is **Node.js 24** unless the target repository already uses another supported version.
 
 **Async error propagation** is automatic — rejected promises and thrown errors inside `async` route handlers forward to the error handler without an explicit `next(error)`. Controllers still use `try/catch` to handle named error types before that fallback.
 
@@ -36,6 +38,12 @@ app.use(express.urlencoded({ extended: true }));
 ```
 
 **Error-handling middleware** must declare all four parameters `(err, req, res, next)` or Express treats it as regular middleware.
+
+**Route path syntax changed** — review wildcard and optional segment syntax carefully when migrating Express 4 routes.
+
+**`req.query` should not be treated as the destination for coerced values** — store validated query output on `res.locals` instead of mutating `req.query`.
+
+**`req.body` is `undefined` until a body parser runs** — do not assume JSON payloads exist before `express.json()`.
 
 ## Environment Variable Strategy
 
@@ -54,15 +62,19 @@ New projects use Node.js's built-in `process.loadEnvFile()` instead of `dotenv`.
 .env.production
 ```
 
-In `app.ts`, load the correct file based on `NODE_ENV` before any other code reads `process.env`:
+In `app.ts`, import first, then load the correct file based on `NODE_ENV` immediately after imports and before application setup:
 
 ```ts
+import express from 'express';
+
 if (process.env.NODE_ENV !== 'production') {
   process.loadEnvFile(`.env.${process.env.NODE_ENV || 'development'}`);
 }
 ```
 
 In production (e.g. ECS, Lambda, Fly.io), environment variables are injected directly into the process — no file is loaded. Do not attempt to load a file in production.
+
+Avoid reading `process.env` at module top level inside imported files before `loadEnvFile()` runs. If a dependency needs env values during initialization, move that env read into a function, a factory, or the app bootstrap path.
 
 ## Portability Rule
 
@@ -114,6 +126,8 @@ Use this mode when the repo already has:
 - `src/utilities/status-code.ts` — `StatusCode` enum
 - `src/dependencies/` — dependency injection composition root
 
+Preserve local patterns even when they reflect older Express 4-era conventions. Only apply the fallback references when the repo does not already establish a different approach.
+
 ## Preferred `src/` Structure
 
 Unless the target repository already has a different established layout, use:
@@ -152,7 +166,7 @@ When adding a new resource, follow this file flow:
 
 ## Default Assumptions
 
-- Node.js version: 24
+- Node.js version baseline for new projects: 24
 - Express version: 5.x (`express ~5.1.0`)
 - Language: TypeScript with `commonjs` module output
 - Validation: Zod v4 (`zod/v4`)
@@ -162,9 +176,20 @@ When adding a new resource, follow this file flow:
   - Postgres: Drizzle ORM (`drizzle-orm`) with `postgres` driver for new projects; follow the existing ORM if one is already in use
 - Security headers: `helmet`
 - CORS: `cors` with `CORS_ORIGIN` env var, `*` fallback
-- Environment loading: Node.js `process.loadEnvFile()` — no `dotenv` package
+- Environment loading: Node.js `process.loadEnvFile()` in `app.ts` after imports — no `dotenv` package
 
 If the user gives constraints that conflict with these defaults, adapt and state the change.
+
+## Modern Fallback Preferences
+
+When the target repository does not already establish a conflicting pattern, prefer:
+
+- validated request data stored on `res.locals.validated` instead of mutating `req.query`
+- thin controllers that throw typed domain errors and let global error middleware map them to HTTP responses
+- pagination ordered by stable monotonic keys, not random UUID values
+- DynamoDB `Query` over `Scan` when an access pattern is known
+- structured logging and graceful shutdown hooks for new apps
+- the repo's existing dev runner first; otherwise use `tsx watch` for new TypeScript projects, `node --watch` for compiled JavaScript, and `nodemon` only when custom watch behavior is already part of the project
 
 ## Environment File Templates
 
