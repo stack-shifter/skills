@@ -7,14 +7,17 @@
 - [Stack Shifter Skills](#stack-shifter-skills)
   - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
+  - [Skills in This Repository](#skills-in-this-repository)
+    - [`branch-risk-review`](#branch-risk-review)
+    - [`spec-workflow`](#spec-workflow)
+    - [`cdk-rest-api-dynamodb`](#cdk-rest-api-dynamodb)
   - [What Are Skills?](#what-are-skills)
   - [The Open Agent Skills Ecosystem](#the-open-agent-skills-ecosystem)
   - [Building Custom Skills](#building-custom-skills)
     - [Skill Structure](#skill-structure)
-    - [Creating a Skill](#creating-a-skill)
+    - [Creating a Skill from Scratch](#creating-a-skill-from-scratch)
   - [Installing Skills](#installing-skills)
-  - [Supported Agents](#supported-agents)
-  - [Skills in This Repository](#skills-in-this-repository)
+    - [Updating Installed Skills](#updating-installed-skills)
   - [Resources](#resources)
 
 ---
@@ -24,6 +27,35 @@
 This repository is a curated AI agent skills library maintained by Stack Shifter. Its purpose is to build, organize, and share reusable **custom skills** for AI agents — drawing from the [Agent Skills standard](https://agentskills.io/) and Anthropic's official [skills repository](https://github.com/anthropics/skills).
 
 Skills let you extend AI agents with procedural knowledge: teach them your workflows, enforce your conventions, and automate repeatable tasks consistently across every session.
+
+---
+
+## Skills in This Repository
+
+A brief description of every skill available in this library, along with its individual install command.
+### `branch-risk-review`
+
+Reviews the current branch against `main` for breaking changes and merge risk.
+
+```bash
+npx skills add stack-shifter/skills --skill branch-risk-review
+```
+
+### `spec-workflow`
+
+Runs a locked-spec, phased-plan workflow for feature delivery.
+
+```bash
+npx skills add stack-shifter/skills --skill spec-workflow
+```
+
+### `cdk-rest-api-dynamodb`
+
+Builds CDK-based REST APIs with Lambda and DynamoDB using repo patterns first.
+
+```bash
+npx skills add stack-shifter/skills --skill cdk-rest-api-dynamodb
+```
 
 ---
 
@@ -207,42 +239,34 @@ npx skills add stack-shifter/skills --skill <skill-name>
 /plugin marketplace add stack-shifter/skills
 ```
 
----
+### Updating Installed Skills
 
-## Supported Agents
+If you already installed this repo's skills and want the latest version after a skill changes, re-run the same `skills add` command.
 
-Skills built to the [Agent Skills standard](https://agentskills.io/) are compatible with a wide range of AI agents, including:
-
-Claude Code · GitHub Copilot · Cursor · Windsurf · Cline · Codex · Gemini · Goose · Roo · and [many more](https://skills.sh/)
-
----
-
-## Skills in This Repository
-
-A brief description of every skill available in this library, along with its individual install command.
-### `branch-risk-review`
-
-Compares the current branch to `main` to produce a structured, risk-focused review that surfaces breaking changes, regression risk, security regressions, data/migration risks, and operational concerns. Use when reviewing a PR, preparing a release, or answering "what changed vs main?".
+**Refresh all skills from this repo:**
 
 ```bash
+npx skills add stack-shifter/skills
+```
+
+**Refresh one specific skill:**
+
+```bash
+npx skills add stack-shifter/skills --skill <skill-name>
+```
+
+Examples:
+
+```bash
+npx skills add stack-shifter/skills --skill spec-workflow
 npx skills add stack-shifter/skills --skill branch-risk-review
 ```
 
-### `approval-spec-workflow`
+Use this after:
 
-Enforces an approval-gated, two-phase workflow: produce a detailed spec first, then implement only after explicit approval. Trigger by prefixing any prompt with `Spec:`. Keeps architecture and implementation decisions explicit and reviewable before any code is written.
-
-```bash
-npx skills add stack-shifter/skills --skill approval-spec-workflow
-```
-
-### `cdk-rest-api-dynamodb`
-
-Designs and implements REST API endpoints on AWS using the target repository's CDK constructs first, with Lambda handlers and DynamoDB as the default datastore. Use whenever you need to add or modify API Gateway routes, Lambda handlers, Cognito auth, request models, or DynamoDB-backed CRUD operations.
-
-```bash
-npx skills add stack-shifter/skills --skill cdk-rest-api-dynamodb
-```
+- editing a local skill in this repository
+- pulling new changes from GitHub
+- renaming or revising a skill and wanting the installed copy updated
 
 ---
 
@@ -251,6 +275,3 @@ npx skills add stack-shifter/skills --skill cdk-rest-api-dynamodb
 - [skills.sh](https://skills.sh/) — Open agent skills ecosystem and registry
 - [anthropics/skills](https://github.com/anthropics/skills) — Anthropic's official skills library and reference implementations
 - [Agent Skills Specification](https://agentskills.io/) — The open standard for agent skills
-- [What are skills?](https://support.claude.com/en/articles/12512176-what-are-skills) — Claude support documentation
-- [How to create custom skills](https://support.claude.com/en/articles/12512198-creating-custom-skills) — Step-by-step skill creation guide
-- [Skills API Quickstart](https://docs.claude.com/en/api/skills-guide#creating-a-skill) — Using skills via the Claude API
