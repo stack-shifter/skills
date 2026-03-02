@@ -4,21 +4,25 @@ Use this reference when the target repository does not already have an Express a
 
 ## Goal
 
-Create a single `src/app.ts` that wires middleware, mounts routes, and starts the server.
+Create a single `src/app.ts` that loads environment variables, wires middleware, mounts routes, and starts the server.
 
 ## Baseline Example
 
 ```ts
 // src/app.ts
+
+// Load env file before anything else reads process.env.
+// In production, env vars are injected directly — skip file loading.
+if (process.env.NODE_ENV !== 'production') {
+  process.loadEnvFile(`.env.${process.env.NODE_ENV || 'development'}`);
+}
+
 import express, { Express } from 'express';
-import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import itemRoutes from './routes/item.route';
 import { globalErrorHandler } from './middlewares/global-error.middleware';
 import { healthCheck } from './controllers/health.controller';
-
-dotenv.config();
 
 const app: Express = express();
 
@@ -39,10 +43,43 @@ app.use(globalErrorHandler);
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 ```
 
+## Environment Files
+
+Create three files at the project root:
+
+```
+.env.example        ← committed to git; documents all required variables
+.env.development    ← local values; gitignored
+.env.production     ← production values; gitignored
+```
+
+Add to `.gitignore`:
+
+```
+.env.development
+.env.production
+```
+
+`.env.example` should contain every variable with empty or placeholder values so new contributors know what to fill in:
+
+```dotenv
+NODE_ENV=
+PORT=3000
+CORS_ORIGIN=
+AWS_REGION=
+COGNITO_USER_POOL_ID=
+COGNITO_APP_CLIENT_IDS=
+DYNAMODB_TABLE=
+# Local development only
+AWS_PROFILE=
+DYNAMODB_ENDPOINT=
+```
+
 ## Guidance
 
+- `process.loadEnvFile()` is built into Node.js 22.9+ / Node.js 24 — no `dotenv` package needed
+- The `loadEnvFile` call must appear before any `import` that reads `process.env` at module load time; place it at the very top of `app.ts` before other imports, or in a dedicated `src/env.ts` loaded first
 - Set `trust proxy` so `req.ip` and `req.ips` reflect the real client IP behind a load balancer
 - Register `globalErrorHandler` last — Express 5 auto-forwards async rejections to it
-- Use `/v1/` prefix on all resource routes; the health check is public (no auth middleware)
-- Keep `dotenv.config()` at the top before any code that reads `process.env`
+- Use `/v1/` prefix on all resource routes; the health check is public with no auth middleware
 - In Express 5, `express.json()` and `express.urlencoded()` are built-in; no `body-parser` needed

@@ -1,6 +1,8 @@
-# Repository Pattern
+# Repository Pattern (DynamoDB)
 
-Use this reference when the target repository does not already have repository classes in `src/data/`.
+Use this reference when the target repository uses DynamoDB and does not already have repository classes in `src/data/`.
+
+For Postgres projects, use `references/postgres-pattern.md` instead.
 
 ## Goal
 
@@ -141,7 +143,7 @@ export class ItemRepository implements Repository<Item> {
 ## Dependency Wiring
 
 ```ts
-// src/dependencies/aws.deps.ts
+// src/dependencies/db.deps.ts
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb';
 import { ItemRepository } from '../data/item.repository';
@@ -169,4 +171,4 @@ export const itemRepository = new ItemRepository(dynamoDBClient);
 - Always catch DynamoDB SDK errors and rethrow as `DatabaseError` — controllers do the HTTP mapping
 - Use `ExpressionAttributeNames` to avoid DynamoDB reserved word conflicts in update expressions
 - In production, supply no credentials — the SDK picks up the IAM role from the compute environment
-- `DYNAMODB_ENDPOINT` enables a local DynamoDB container for development
+- `DYNAMODB_ENDPOINT` in `.env.development` enables a local DynamoDB container via Docker Compose
