@@ -100,14 +100,88 @@ Instructions that the agent will follow when this skill is active.
 | `name`        | Unique identifier (lowercase, hyphens for spaces) |
 | `description` | What the skill does and when to use it            |
 
-### Creating a Skill
+### Creating a Skill from Scratch
 
-1. Create a new folder under `skills/` named after your skill
-2. Add a `SKILL.md` file using the structure above
-3. Write clear, specific instructions the agent should follow
-4. Include usage examples and guidelines for best results
+**1. Name your skill**
 
-Use the [official template](https://github.com/anthropics/skills/tree/main/template) from `anthropics/skills` as a starting point.
+Choose a lowercase, hyphen-separated name that describes the task, for example `release-checklist` or `aws-cost-audit`. This name becomes both the folder name and the `name` field in frontmatter.
+
+**2. Create the skill folder and file**
+
+```bash
+mkdir my-skill
+touch my-skill/SKILL.md
+```
+
+**3. Write the frontmatter**
+
+Open `my-skill/SKILL.md` and add the required YAML frontmatter at the top:
+
+```markdown
+---
+name: my-skill
+description: A short, specific description of what this skill does and when the agent should use it.
+---
+```
+
+The `description` field is especially important — agents use it to decide when to activate the skill, so be precise about the trigger context.
+
+**4. Write the instructions**
+
+Below the frontmatter, add a Markdown body with clear, imperative instructions. A recommended structure:
+
+```markdown
+# My Skill
+
+Brief summary of what this skill does.
+
+## When to Use
+
+- Trigger condition 1
+- Trigger condition 2
+
+## Steps
+
+1. First action the agent should take
+2. Second action
+3. Third action
+
+## Examples
+
+- `my-skill do X` — does X
+- `my-skill do Y` — does Y
+
+## Guidelines
+
+- Keep outputs concise
+- Always confirm before destructive actions
+```
+
+**5. Validate your skill**
+
+Before committing, confirm:
+
+- The folder contains a valid `SKILL.md`
+- Frontmatter includes both `name` and `description`
+- Any file paths or commands referenced in the skill match the actual repository layout
+
+You can test by installing the repo locally:
+
+```bash
+npx skills add stack-shifter/skills
+```
+
+Then exercise the skill in a compatible agent to verify it activates and behaves as expected.
+
+**6. Register the skill in this README**
+
+Add a row to the [Skills in This Repository](#skills-in-this-repository) section with a short description and the per-skill install command:
+
+```bash
+npx skills add stack-shifter/skills --skill my-skill
+```
+
+Use the [official template](https://github.com/anthropics/skills/tree/main/template) from `anthropics/skills` as an additional reference.
 
 ---
 
@@ -146,8 +220,29 @@ Claude Code · GitHub Copilot · Cursor · Windsurf · Cline · Codex · Gemini 
 ## Skills in This Repository
 
 A brief description of every skill available in this library, along with its individual install command.
+### `compare-branch`
 
-<!-- Add new skills below this line -->
+Compares the current branch to `main` to produce a structured, risk-focused review that surfaces breaking changes, regression risk, security regressions, data/migration risks, and operational concerns. Use when reviewing a PR, preparing a release, or answering "what changed vs main?".
+
+```bash
+npx skills add stack-shifter/skills --skill compare-branch
+```
+
+### `spec-workflow`
+
+Enforces an approval-gated, two-phase workflow: produce a detailed spec first, then implement only after explicit approval. Trigger by prefixing any prompt with `Spec:`. Keeps architecture and implementation decisions explicit and reviewable before any code is written.
+
+```bash
+npx skills add stack-shifter/skills --skill spec-workflow
+```
+
+### `cdk-rest-api-lambda-dynamodb`
+
+Designs and implements REST API endpoints on AWS using the target repository's CDK constructs first, with Lambda handlers and DynamoDB as the default datastore. Use whenever you need to add or modify API Gateway routes, Lambda handlers, Cognito auth, request models, or DynamoDB-backed CRUD operations.
+
+```bash
+npx skills add stack-shifter/skills --skill cdk-rest-api-lambda-dynamodb
+```
 
 ---
 
