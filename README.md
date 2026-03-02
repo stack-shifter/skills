@@ -11,6 +11,7 @@
     - [`branch-risk-review`](#branch-risk-review)
     - [`spec-workflow`](#spec-workflow)
     - [`cdk-rest-api-dynamodb`](#cdk-rest-api-dynamodb)
+    - [`cdk-rest-api-postgres`](#cdk-rest-api-postgres)
   - [What Are Skills?](#what-are-skills)
   - [The Open Agent Skills Ecosystem](#the-open-agent-skills-ecosystem)
   - [Building Custom Skills](#building-custom-skills)
@@ -55,6 +56,14 @@ Builds CDK-based REST APIs with Lambda and DynamoDB using repo patterns first.
 
 ```bash
 npx skills add stack-shifter/skills --skill cdk-rest-api-dynamodb
+```
+
+### `cdk-rest-api-postgres`
+
+Builds CDK-based REST APIs with Lambda and Postgres via Drizzle using repo patterns first.
+
+```bash
+npx skills add stack-shifter/skills --skill cdk-rest-api-postgres
 ```
 
 ---
