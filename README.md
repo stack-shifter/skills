@@ -220,28 +220,28 @@ Claude Code · GitHub Copilot · Cursor · Windsurf · Cline · Codex · Gemini 
 ## Skills in This Repository
 
 A brief description of every skill available in this library, along with its individual install command.
-### `compare-branch`
+### `branch-risk-review`
 
 Compares the current branch to `main` to produce a structured, risk-focused review that surfaces breaking changes, regression risk, security regressions, data/migration risks, and operational concerns. Use when reviewing a PR, preparing a release, or answering "what changed vs main?".
 
 ```bash
-npx skills add stack-shifter/skills --skill compare-branch
+npx skills add stack-shifter/skills --skill branch-risk-review
 ```
 
-### `spec-workflow`
+### `approval-spec-workflow`
 
 Enforces an approval-gated, two-phase workflow: produce a detailed spec first, then implement only after explicit approval. Trigger by prefixing any prompt with `Spec:`. Keeps architecture and implementation decisions explicit and reviewable before any code is written.
 
 ```bash
-npx skills add stack-shifter/skills --skill spec-workflow
+npx skills add stack-shifter/skills --skill approval-spec-workflow
 ```
 
-### `cdk-rest-api-lambda-dynamodb`
+### `cdk-rest-api-dynamodb`
 
 Designs and implements REST API endpoints on AWS using the target repository's CDK constructs first, with Lambda handlers and DynamoDB as the default datastore. Use whenever you need to add or modify API Gateway routes, Lambda handlers, Cognito auth, request models, or DynamoDB-backed CRUD operations.
 
 ```bash
-npx skills add stack-shifter/skills --skill cdk-rest-api-lambda-dynamodb
+npx skills add stack-shifter/skills --skill cdk-rest-api-dynamodb
 ```
 
 ---

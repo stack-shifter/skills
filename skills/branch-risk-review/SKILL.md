@@ -1,5 +1,5 @@
 ---
-name: compare-branch
+name: branch-risk-review
 description: Compares the current branch to main to identify potential breaking changes, introduced bugs, security regressions, and operational/performance risks. Use when reviewing PRs, preparing releases, or when asked “what changed vs main?”.
 ---
 

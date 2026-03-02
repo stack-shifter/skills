@@ -1,5 +1,5 @@
 ---
-name: spec-workflow
+name: approval-spec-workflow
 description: Enforces an approval-gated, two-phase Spec workflow. Use when a prompt starts with "Spec:" to produce a detailed spec inline in the terminal, then implement only after explicit approval.
 ---
 

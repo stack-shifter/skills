@@ -1,5 +1,5 @@
 ---
-name: cdk-rest-api-lambda-dynamodb
+name: cdk-rest-api-dynamodb
 description: Designs and implements REST APIs on AWS using the target repository's CDK patterns first, with AWS Lambda handlers and DynamoDB as the primary datastore. Use this whenever the user wants to add or modify API Gateway REST endpoints, Lambda handlers, Cognito auth, request models, reusable CDK constructs, or DynamoDB-backed CRUD routes, even if they only ask for "an endpoint", "a handler", "a table", or "some CDK wiring".
 ---
 
