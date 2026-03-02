@@ -12,6 +12,7 @@
     - [`spec-workflow`](#spec-workflow)
     - [`cdk-rest-api-dynamodb`](#cdk-rest-api-dynamodb)
     - [`cdk-rest-api-postgres`](#cdk-rest-api-postgres)
+    - [`expressjs-rest-api`](#expressjs-rest-api)
   - [What Are Skills?](#what-are-skills)
   - [The Open Agent Skills Ecosystem](#the-open-agent-skills-ecosystem)
   - [Building Custom Skills](#building-custom-skills)
@@ -64,6 +65,14 @@ Builds CDK-based REST APIs with Lambda and Postgres via Drizzle using repo patte
 
 ```bash
 npx skills add stack-shifter/skills --skill cdk-rest-api-postgres
+```
+
+### `expressjs-rest-api`
+
+Builds Express 5 REST APIs with TypeScript, Zod v4 validation, Cognito JWT auth, and DynamoDB repositories using repo patterns first.
+
+```bash
+npx skills add stack-shifter/skills --skill expressjs-rest-api
 ```
 
 ---

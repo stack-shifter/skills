@@ -1,3 +1,6 @@
+# Working directory
+_temp
+
 # Logs
 logs
 *.log
