@@ -69,7 +69,7 @@ npx skills add stack-shifter/skills --skill cdk-rest-api-postgres
 
 ### `expressjs-rest-api`
 
-Builds Express 5 REST APIs with TypeScript, Zod v4 validation, Cognito JWT auth, and DynamoDB or Postgres (Drizzle ORM) repositories. Targets Node.js 24, uses the built-in `process.loadEnvFile()` instead of dotenv, and follows repo patterns first.
+Builds Express 5 REST APIs with TypeScript using repo patterns first.
 
 ```bash
 npx skills add stack-shifter/skills --skill expressjs-rest-api
