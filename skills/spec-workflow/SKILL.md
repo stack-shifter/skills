@@ -41,6 +41,9 @@ Do not use this skill for trivial one-off edits unless the user explicitly asks 
 Prefer this repository layout unless the user or repo already has an equivalent convention:
 
 ```text
+AGENTS.md
+CLAUDE.md
+
 docs/
   specs/
     010_task-management.spec.md
@@ -49,6 +52,8 @@ docs/
 ```
 
 Use a shared numeric prefix and stable slug for the feature across the spec and plan files.
+
+If `CLAUDE.md` exists in the repository, treat it as an additional instruction source alongside `AGENTS.md`.
 
 ## Naming Guidance
 
@@ -124,6 +129,8 @@ Within each phase, include:
 - expected files to change
 - validation commands to run after the phase's tasks are complete
 - a gate describing what must be true before the phase is considered complete
+
+The final phase must include a task to update `README.md` to reflect any user-visible changes introduced by the feature.
 
 ## Holistic Validation Pass
 
@@ -218,16 +225,18 @@ Once the spec is approved or already locked:
 
 For each execution run:
 
-1. Read the locked spec in `docs/specs/`.
-2. Read the active plan in `docs/specs/plans/`.
-3. Identify the active phase: the first phase that still has unchecked tasks.
-4. If any task in the phase is underspecified, refine those plan tasks before coding.
-5. Implement all unchecked tasks in the active phase, one at a time, in order.
-6. Update each task checkbox as its implementation work is completed.
-7. After all tasks in the phase are complete, run the phase's validation commands.
-8. Verify the phase gate.
-9. Present a phase review to the user (see Phase Boundary Rule).
-10. Stop. Wait for the user to either provide feedback or explicitly approve moving to the next phase.
+1. Read `AGENTS.md`.
+2. Read `CLAUDE.md` if it exists.
+3. Read the locked spec in `docs/specs/`.
+4. Read the active plan in `docs/specs/plans/`.
+5. Identify the active phase: the first phase that still has unchecked tasks.
+6. If any task in the phase is underspecified, refine those plan tasks before coding.
+7. Implement all unchecked tasks in the active phase, one at a time, in order.
+8. Update each task checkbox as its implementation work is completed.
+9. After all tasks in the phase are complete, run the phase's validation commands.
+10. Verify the phase gate.
+11. Present a phase review to the user (see Phase Boundary Rule).
+12. Stop. Wait for the user to either provide feedback or explicitly approve moving to the next phase.
 
 ## Task Design Rules
 
@@ -418,6 +427,8 @@ Completion is defined by the spec and acceptance criteria, not just by checked b
 
 Use this instruction pattern when the user wants the loop:
 
+> Use `@AGENTS.md` for constraints.
+> Use `@CLAUDE.md` for additional constraints if it exists.
 > Use `@docs/specs/<id>_<slug>.spec.md` as LOCKED requirements and do not modify it unless explicitly instructed.
 > Use `@docs/specs/plans/<id>_<slug>.plan.md` to identify the active phase (first phase with unchecked tasks).
 > Implement all unchecked tasks in that phase, in order.
