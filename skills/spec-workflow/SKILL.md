@@ -196,7 +196,8 @@ For each execution run:
 7. Implement all unchecked tasks in the active phase, one at a time, in order.
 8. After each task, run its validation commands and update its plan checkbox.
 9. When all tasks in the phase are complete, verify the phase gate.
-10. Stop. Do not advance to the next phase. Wait for explicit user instruction to continue.
+10. Present a phase review to the user (see Phase Boundary Rule).
+11. Stop. Wait for the user to either provide feedback or explicitly approve moving to the next phase.
 
 ## Task Design Rules
 
@@ -242,16 +243,27 @@ When a phase is complete:
 
 1. Verify the phase gate (all listed acceptance checks pass).
 2. Update the plan to reflect phase completion.
-3. Report what was completed, which files changed, and the gate result.
+3. Present a phase review to the user in this format:
+
+   ```
+   ## Phase <N> Complete
+
+   **Tasks completed:** <list with task IDs>
+   **Files changed:** <list>
+   **Gate:** <pass / fail with details>
+
+   ---
+   Provide feedback to adjust this phase, or reply "proceed" to start Phase <N+1>.
+   ```
+
 4. Stop. Do not begin the next phase.
 
-The next phase begins only when the user explicitly instructs it, for example:
+The user may respond with:
 
-- "continue to phase 2"
-- "proceed with the next phase"
-- "run the next phase"
+- **Feedback** — corrections, additional changes, or questions about the phase just completed. Apply the feedback within the current phase before asking again.
+- **Explicit continuation** — any clear instruction to move forward, such as "proceed", "continue to phase 2", or "next phase".
 
-If the user does not give an explicit continuation instruction, treat the run as finished.
+If the user provides feedback, address it and re-present the phase review prompt when done. Do not advance until the user explicitly approves.
 
 ## Validation Rules
 
@@ -381,8 +393,8 @@ Use this instruction pattern when the user wants the loop:
 > Use `@docs/plans/<id>_<slug>.plan.md` to identify the active phase (first phase with unchecked tasks).
 > Implement all unchecked tasks in that phase, in order.
 > After each task, run its validation commands and update its plan checkbox.
-> When the phase is complete, verify the phase gate, report results, and stop.
-> Do not advance to the next phase without explicit user instruction.
+> When the phase is complete, verify the phase gate, present the phase review, and invite feedback or a proceed instruction.
+> Do not advance to the next phase until the user explicitly approves.
 
 ## Output Expectations
 
@@ -399,7 +411,7 @@ When finishing an implementation run:
 - list commands run and results
 - state whether the phase gate was satisfied
 - confirm the plan was updated
-- clearly indicate that the run is stopped and the next phase requires explicit user instruction
+- present the phase review prompt and explicitly invite feedback or a proceed instruction before stopping
 
 ## Guardrails
 
