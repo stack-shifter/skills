@@ -281,9 +281,11 @@ A phase is complete when all of its tasks are checked off and its gate condition
 
 When a phase is complete:
 
-1. Verify the phase gate (all listed acceptance checks pass).
-2. Update the plan to reflect phase completion.
-3. Present a phase review to the user in this format:
+1. Run phase-scoped validation commands.
+2. Run the full test suite. If any previously passing tests now fail, fix the regression in the implementation — do not modify tests, the spec, or phase boundaries to work around it. Surface to the user if the regression is out of scope.
+3. Verify the phase gate (all listed acceptance checks pass).
+4. Update the plan to reflect phase completion.
+5. Present a phase review to the user in this format:
 
    ```
    ## Phase <N> Complete
@@ -296,7 +298,7 @@ When a phase is complete:
    Provide feedback to adjust this phase, or reply "proceed" to start Phase <N+1>.
    ```
 
-4. Stop. Do not begin the next phase.
+6. Stop. Do not begin the next phase.
 
 The user may respond with:
 
@@ -319,6 +321,16 @@ Examples:
 If a phase does not list validation commands, add appropriate ones to the plan before implementation begins.
 
 Do not run validation after individual tasks. Run it once when all tasks in the active phase are done.
+
+### Full Suite Requirement
+
+After running phase-scoped validation, always run the full test suite. A phase is not complete if the full suite is broken, even if the phase's own validation commands pass.
+
+If the full suite has failures:
+
+- Fix the regression by correcting the implementation — do not delete, skip, or modify failing tests to make them pass.
+- Do not modify the spec or restructure plan phases to work around the failure.
+- If the regression cannot be fixed within the current phase's scope, surface it to the user before proceeding.
 
 ## Plan Refinement Rule
 
