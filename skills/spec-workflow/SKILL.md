@@ -1,6 +1,6 @@
 ---
 name: spec-workflow
-description: Drives a spec-first, phased execution workflow for feature work. Use when the user wants a feature spec, an implementation plan, or an iterative "next task only" loop where requirements stay locked in `docs/specs/*.spec.md` and execution lives in one or more mutable `docs/plans/*.plan.md` files.
+description: Drives a spec-first, phased execution workflow for feature work. Use when the user wants a feature spec, an implementation plan, or an iterative "next task only" loop where requirements stay locked in `docs/specs/*.spec.md` and execution lives in one or more mutable `docs/specs/plans/*.plan.md` files.
 ---
 
 # Spec Workflow Skill
@@ -41,19 +41,14 @@ Do not use this skill for trivial one-off edits unless the user explicitly asks 
 Prefer this repository layout unless the user or repo already has an equivalent convention:
 
 ```text
-AGENTS.md
-CLAUDE.md
-
 docs/
   specs/
     010_task-management.spec.md
-  plans/
-    010_task-management.plan.md
+    plans/
+      010_task-management.plan.md
 ```
 
 Use a shared numeric prefix and stable slug for the feature across the spec and plan files.
-
-If `CLAUDE.md` exists in the repository, treat it as an additional instruction source alongside `AGENTS.md`.
 
 ## Naming Guidance
 
@@ -110,11 +105,11 @@ The plan is the primary mutable document during implementation.
 4. `Acceptance Criteria`
 5. `Plan References`
 
-The `Plan References` section should point to one or more files in `docs/plans/`.
+The `Plan References` section should point to one or more files in `docs/specs/plans/`.
 
 ### Plan File
 
-`docs/plans/<id>_<slug>.plan.md` should contain phased execution such as:
+`docs/specs/plans/<id>_<slug>.plan.md` should contain phased execution such as:
 
 - `Phase 1 - Skeleton + Types`
 - `Phase 2 - Validation + Errors`
@@ -212,7 +207,7 @@ When a spec already exists:
 
 Once the spec is approved or already locked:
 
-1. Create or revise the plan file in `docs/plans/`.
+1. Create or revise the plan file in `docs/specs/plans/`.
 2. Run the holistic validation pass against the locked spec and current repo state before finalizing phase boundaries.
 3. Break execution into phases.
 4. Write atomic tasks with IDs and checkboxes.
@@ -223,18 +218,16 @@ Once the spec is approved or already locked:
 
 For each execution run:
 
-1. Read `AGENTS.md`.
-2. Read `CLAUDE.md` if it exists.
-3. Read the locked spec in `docs/specs/`.
-4. Read the active plan in `docs/plans/`.
-5. Identify the active phase: the first phase that still has unchecked tasks.
-6. If any task in the phase is underspecified, refine those plan tasks before coding.
-7. Implement all unchecked tasks in the active phase, one at a time, in order.
-8. Update each task checkbox as its implementation work is completed.
-9. After all tasks in the phase are complete, run the phase's validation commands.
-10. Verify the phase gate.
-11. Present a phase review to the user (see Phase Boundary Rule).
-12. Stop. Wait for the user to either provide feedback or explicitly approve moving to the next phase.
+1. Read the locked spec in `docs/specs/`.
+2. Read the active plan in `docs/specs/plans/`.
+3. Identify the active phase: the first phase that still has unchecked tasks.
+4. If any task in the phase is underspecified, refine those plan tasks before coding.
+5. Implement all unchecked tasks in the active phase, one at a time, in order.
+6. Update each task checkbox as its implementation work is completed.
+7. After all tasks in the phase are complete, run the phase's validation commands.
+8. Verify the phase gate.
+9. Present a phase review to the user (see Phase Boundary Rule).
+10. Stop. Wait for the user to either provide feedback or explicitly approve moving to the next phase.
 
 ## Task Design Rules
 
@@ -305,7 +298,7 @@ If the user provides feedback, address it and re-present the phase review prompt
 
 ## Validation Rules
 
-Each implementation task should include explicit validation commands in the plan.
+Each phase should include explicit validation commands that run after all tasks in the phase are complete.
 
 Examples:
 
@@ -314,9 +307,9 @@ Examples:
 - `cargo test task_service`
 - `pytest tests/tasks/test_create_task.py`
 
-If a task does not list validation commands, add appropriate ones to the plan before implementation.
+If a phase does not list validation commands, add appropriate ones to the plan before implementation begins.
 
-Validation should be scoped to the task when practical, then broaden only as needed.
+Do not run validation after individual tasks. Run it once when all tasks in the active phase are done.
 
 ## Plan Refinement Rule
 
@@ -425,12 +418,10 @@ Completion is defined by the spec and acceptance criteria, not just by checked b
 
 Use this instruction pattern when the user wants the loop:
 
-> Use `@AGENTS.md` for constraints.
-> Use `@CLAUDE.md` for additional constraints if it exists.
 > Use `@docs/specs/<id>_<slug>.spec.md` as LOCKED requirements and do not modify it unless explicitly instructed.
-> Use `@docs/plans/<id>_<slug>.plan.md` to identify the active phase (first phase with unchecked tasks).
+> Use `@docs/specs/plans/<id>_<slug>.plan.md` to identify the active phase (first phase with unchecked tasks).
 > Implement all unchecked tasks in that phase, in order.
-> After each task, run its validation commands and update its plan checkbox.
+> After completing all tasks in the phase, run the phase's validation commands.
 > When the phase is complete, verify the phase gate, present the phase review, and invite feedback or a proceed instruction.
 > Do not advance to the next phase until the user explicitly approves.
 
