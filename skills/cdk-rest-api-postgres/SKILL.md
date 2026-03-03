@@ -7,7 +7,7 @@ description: Designs and implements REST APIs on AWS using this repository's CDK
 
 Use this skill to compose API endpoints the way this repository already does it.
 
-This repo has already completed its runtime migration from DynamoDB to Postgres. Treat Postgres plus Drizzle as the source of truth for persistence work. When the local CDK constructs and runtime patterns exist, extend them instead of generating generic AWS examples.
+Treat Postgres plus Drizzle as the source of truth for persistence work. When the local CDK constructs and runtime patterns exist, extend them instead of generating generic AWS examples.
 
 Portable repository-specific references live in `references/`. Read only the file needed for the task:
 
@@ -28,24 +28,6 @@ The source of truth order is:
 2. The guidance in this skill
 
 If the local code differs from examples in this skill, follow local code and adapt the output to match it.
-
-## Migration Guardrails
-
-This project no longer uses DynamoDB at runtime.
-
-Do not introduce:
-
-- DynamoDB tables, indexes, IAM grants, or `TableV2` wiring
-- DynamoDB-shaped repository APIs based on `PK`, `SK`, or overloaded GSIs
-- fallback persistence that stores the same data in both SQL and DynamoDB
-- client-account auth flows that were removed during the migration
-
-Do introduce or extend:
-
-- Drizzle schema under `src/data/db/schema/`
-- repository logic under `src/data/repositories/`
-- shared Postgres access through `src/data/db/client.ts`
-- repository wiring through `src/data/context.ts`
 
 ## Repository Discovery
 
@@ -177,7 +159,7 @@ Important details from this repo:
 - default route options merge with per-route options
 - setting `authorizer: undefined` on a route removes the default authorizer
 - scopes are passed per route in `lib/core-stack.ts`
-- there is no table grant abstraction anymore because persistence is SQL, not DynamoDB
+- route grants are connection-based; no table-level IAM grants are needed for SQL persistence
 
 ### 2. `NodeLambda` provides runtime defaults
 
@@ -287,7 +269,6 @@ Prefer methods that reflect domain behavior, for example:
 - `delete`
 - relation-specific helpers when needed
 
-Do not design new repositories around DynamoDB access patterns such as partition keys, sort keys, or GSI lookups.
 For cursor pagination, do not assume UUID v4 primary keys are time-ordered. Prefer a stable ordered tuple such as `created_at` plus `id`, and make the cursor carry both values.
 
 ## Response and Error Rules
@@ -342,5 +323,4 @@ A change using this skill is usually complete when:
 - the handler matches the repository's Middy style
 - controller and repository responsibilities stay separated
 - persistence uses Drizzle and Postgres only
-- no DynamoDB-era patterns were reintroduced
 - tests cover the changed behavior
