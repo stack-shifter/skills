@@ -191,11 +191,12 @@ For each execution run:
 2. Read `CLAUDE.md` if it exists.
 3. Read the locked spec in `docs/specs/`.
 4. Read the active plan in `docs/plans/`.
-5. Identify the next unchecked task only.
-6. If the task is underspecified, refine the plan task before coding.
-7. Implement only that task with minimal diff.
-8. Run the validation commands for that task.
-9. Update the plan checkbox and any small plan notes needed for accuracy.
+5. Identify the active phase: the first phase that still has unchecked tasks.
+6. If any task in the phase is underspecified, refine those plan tasks before coding.
+7. Implement all unchecked tasks in the active phase, one at a time, in order.
+8. After each task, run its validation commands and update its plan checkbox.
+9. When all tasks in the phase are complete, verify the phase gate.
+10. Stop. Do not advance to the next phase. Wait for explicit user instruction to continue.
 
 ## Task Design Rules
 
@@ -219,17 +220,38 @@ If a plan contains oversized tasks, split them before implementation.
 
 When operating in the implementation loop:
 
-- implement only the next unchecked task
-- do not pull in later plan tasks opportunistically
-- keep diffs minimal and scoped to the selected task
+- execute all unchecked tasks within the active phase, in order
+- do not pull in tasks from a later phase
+- keep diffs minimal and scoped to each task
 - use the spec as locked requirements
 - prefer updating the plan over rewriting the spec
+- stop at the phase boundary and wait for explicit user instruction before starting the next phase
 
-If the next task is blocked:
+If a task within the active phase is blocked:
 
 - do not silently skip to a later task
 - record the blocker in the plan
 - ask the user for direction if the blocker changes requirements or ordering
+- do not advance to the next phase while a blocker is unresolved
+
+## Phase Boundary Rule
+
+A phase is complete when all of its tasks are checked off and its gate condition is satisfied.
+
+When a phase is complete:
+
+1. Verify the phase gate (all listed acceptance checks pass).
+2. Update the plan to reflect phase completion.
+3. Report what was completed, which files changed, and the gate result.
+4. Stop. Do not begin the next phase.
+
+The next phase begins only when the user explicitly instructs it, for example:
+
+- "continue to phase 2"
+- "proceed with the next phase"
+- "run the next phase"
+
+If the user does not give an explicit continuation instruction, treat the run as finished.
 
 ## Validation Rules
 
@@ -356,9 +378,11 @@ Use this instruction pattern when the user wants the loop:
 > Use `@AGENTS.md` for constraints.
 > Use `@CLAUDE.md` for additional constraints if it exists.
 > Use `@docs/specs/<id>_<slug>.spec.md` as LOCKED requirements and do not modify it unless explicitly instructed.
-> Use `@docs/plans/<id>_<slug>.plan.md` to identify the next unchecked task.
-> Implement only that task with minimal diff.
-> Update the plan checkbox and any necessary plan notes.
+> Use `@docs/plans/<id>_<slug>.plan.md` to identify the active phase (first phase with unchecked tasks).
+> Implement all unchecked tasks in that phase, in order.
+> After each task, run its validation commands and update its plan checkbox.
+> When the phase is complete, verify the phase gate, report results, and stop.
+> Do not advance to the next phase without explicit user instruction.
 
 ## Output Expectations
 
@@ -370,16 +394,19 @@ When drafting the workflow artifacts:
 
 When finishing an implementation run:
 
-- report the task completed
+- report the phase and each task completed within it
 - summarize files changed
 - list commands run and results
-- mention whether the plan was updated
+- state whether the phase gate was satisfied
+- confirm the plan was updated
+- clearly indicate that the run is stopped and the next phase requires explicit user instruction
 
 ## Guardrails
 
 - Do not treat the spec and plan as interchangeable.
 - Do not store execution checkboxes in the spec.
-- Do not implement multiple unchecked tasks in one run unless the user explicitly overrides the rule.
+- Do not advance past the current phase without explicit user instruction.
+- Do not implement tasks from a later phase in the same run as the active phase.
 - Do not silently change locked requirements by editing the spec during implementation.
 - Do not guess which spec or plan is active when multiple candidates exist.
 - Prefer one spec per feature, with one or more plan files referenced from that spec only when needed.
