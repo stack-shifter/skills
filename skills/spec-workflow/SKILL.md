@@ -93,7 +93,7 @@ The plan defines:
 - atomic task IDs
 - task checkboxes
 - expected files to change
-- commands to run
+- validation commands to run after the phase's tasks are complete
 - phase gates and acceptance checks
 
 The plan is the primary mutable document during implementation.
@@ -127,8 +127,41 @@ Within each phase, include:
 - atomic tasks with stable IDs such as `P1.T1`
 - checkboxes
 - expected files to change
-- commands to run
+- validation commands to run after the phase's tasks are complete
 - a gate describing what must be true before the phase is considered complete
+
+## Holistic Validation Pass
+
+Before approving, revising, or executing a spec/plan pair, perform these checks against the repository:
+
+1. Surface audit
+   - search for every renamed or removed symbol, config key, route, UI string, contract, and behavior named in the spec
+   - identify all impacted layers, not just the files already named in the docs
+   - include any relevant application, UI, API, data, infrastructure, automation, test, and documentation surfaces
+
+2. Scope consistency
+   - check for contradictions between Overview, Scope, Out of Scope, Requirements, Contracts, Acceptance Criteria, and Plan References
+   - if an acceptance criterion requires changing an out-of-scope layer, either narrow the acceptance criterion or bring that layer into scope
+
+3. Phase executability
+   - verify each phase can pass its listed validation commands using only work completed in that phase and earlier phases
+   - reorder phases when build, type, test, validation, deployment, migration, or integration steps depend on later-phase changes
+
+4. Explicit ownership
+   - if a requirement says to update callers, consumers, adapters, views, handlers, controllers, services, tests, docs, configs, or similar downstream surfaces, name them explicitly in the plan tasks and expected-file summary
+   - do not leave high-risk coupling as implied cleanup
+
+5. Contract boundaries
+   - distinguish product behavior, application/runtime behavior, storage/schema behavior, integration behavior, and infrastructure behavior
+   - state clearly when a cleanup changes one boundary but intentionally leaves another unchanged
+
+When reviewing, present findings in this order:
+
+1. contradictions
+2. missing implementation surface
+3. phase or ordering risks
+4. test or verification gaps
+5. suggested doc fixes
 
 ## Choosing the Active Spec and Plan
 
@@ -164,24 +197,27 @@ If multiple plans exist:
 When no spec exists yet:
 
 1. Gather context from the repo and the user request.
-2. Draft the spec file in `docs/specs/`.
-3. Include plan references in the spec.
-4. Ask the user to review and lock the spec before implementation.
+2. Run the holistic validation pass for the known feature surface so the draft spec reflects actual repo coupling.
+3. Draft the spec file in `docs/specs/`.
+4. Include plan references in the spec.
+5. Ask the user to review and lock the spec before implementation.
 
 When a spec already exists:
 
 1. Treat it as the source of truth.
 2. Do not modify it unless the user explicitly asks to revise requirements.
+3. Still run the holistic validation pass before accepting the spec as execution-ready.
 
 ### Phase B: Generate the phased plan
 
 Once the spec is approved or already locked:
 
 1. Create or revise the plan file in `docs/plans/`.
-2. Break execution into phases.
-3. Write atomic tasks with IDs and checkboxes.
-4. Add expected files, commands, and gates.
-5. Keep plan steps concrete enough that one run can complete exactly one task.
+2. Run the holistic validation pass against the locked spec and current repo state before finalizing phase boundaries.
+3. Break execution into phases.
+4. Write atomic tasks with IDs and checkboxes.
+5. Add expected files, validation commands, and gates.
+6. Keep plan steps concrete enough that one run can complete exactly one task.
 
 ### Phase C: Implementation loop
 
@@ -194,10 +230,11 @@ For each execution run:
 5. Identify the active phase: the first phase that still has unchecked tasks.
 6. If any task in the phase is underspecified, refine those plan tasks before coding.
 7. Implement all unchecked tasks in the active phase, one at a time, in order.
-8. After each task, run its validation commands and update its plan checkbox.
-9. When all tasks in the phase are complete, verify the phase gate.
-10. Present a phase review to the user (see Phase Boundary Rule).
-11. Stop. Wait for the user to either provide feedback or explicitly approve moving to the next phase.
+8. Update each task checkbox as its implementation work is completed.
+9. After all tasks in the phase are complete, run the phase's validation commands.
+10. Verify the phase gate.
+11. Present a phase review to the user (see Phase Boundary Rule).
+12. Stop. Wait for the user to either provide feedback or explicitly approve moving to the next phase.
 
 ## Task Design Rules
 
@@ -226,6 +263,7 @@ When operating in the implementation loop:
 - keep diffs minimal and scoped to each task
 - use the spec as locked requirements
 - prefer updating the plan over rewriting the spec
+- run validation after all tasks in the active phase are complete, not after each individual task
 - stop at the phase boundary and wait for explicit user instruction before starting the next phase
 
 If a task within the active phase is blocked:
