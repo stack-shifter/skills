@@ -17,6 +17,10 @@ Portable fallback references live in `references/`. Read only the file needed fo
 - `references/importer-pattern.md` for importing existing AWS resources when no local importer helper exists
 - `references/response-pattern.md` for standardized API responses when no local `RestResult`-style helper exists
 - `references/jwt-pattern.md` for JWT verification when no local token service exists
+- `references/runtime-composition-pattern.md` for `src/app.ts`-style singleton dependency wiring and repository context composition
+- `references/middleware-pattern.md` for reusable Middy middleware such as auth, validation, and HTTP error translation
+- `references/services-pattern.md` for portable logger, storage, notification, and mapper service design
+- `references/utilities-pattern.md` for shared response helpers, error types, status codes, cursor helpers, and other runtime utilities
 
 ## Portability Rule
 
@@ -39,6 +43,9 @@ Search for:
 - Lambda wrapper constructs or helpers
 - DynamoDB constructs or direct table creation patterns
 - resource importer helpers for existing infrastructure
+- runtime composition files such as `src/app.ts`, `src/data/context.ts`, or dependency containers
+- reusable middleware for auth, validation, JSON parsing, and HTTP error handling
+- shared services for logging, storage, notifications, token verification, and mapping
 - standardized API response utilities
 - JWT verification helpers or token services
 - Stack files that already compose routes, auth, models, or permissions
@@ -67,6 +74,13 @@ Use this mode when the repo already has abstractions similar to the current repo
 - `lib/constructs/dynamodb.ts` for DynamoDB `TableV2` creation
 - `lib/constructs/api-importer.ts` for importing existing AWS resources into stacks
 - `lib/constructs/api-models.ts` for the route and API prop shapes
+- `src/app.ts` or `src/dependencies/` for singleton runtime wiring
+- `src/data/context.ts` for repository aggregation
+- `src/middlewares/` for authorization, validation, and error middleware
+- `src/services/logger.service.ts` for shared logging
+- `src/services/storage/storage.service.ts` for presigned upload or download URLs
+- `src/services/messaging/` for SES or notification integrations
+- `src/services/mapping/` or `src/utilities/mappers/` for DTO and query translation
 - `src/utilities/rest-result.ts` for standardized API Gateway responses
 - `src/services/token.service.ts` for JWT validation built on `aws-jwt-verify`
 
@@ -82,6 +96,9 @@ Default to DynamoDB as the datastore unless the user explicitly wants something 
 6. When a stack needs to attach to existing infrastructure, prefer the local importer helper over direct `from*` imports scattered throughout the stack.
 7. When controllers or handlers return API Gateway responses, prefer the local response utility over ad hoc response objects.
 8. Prefer API Gateway Cognito authorizers for route protection when the repository already uses them for that endpoint shape. Use `aws-jwt-verify` only when JWT verification must happen inside Lambda code rather than at the API Gateway authorizer layer.
+9. Reuse existing runtime composition in `src/app.ts`, `src/dependencies/`, or equivalent rather than instantiating AWS clients, repositories, or services inside handlers.
+10. When local middleware exists, extend the existing Middy chain instead of embedding auth, validation, or error translation logic directly in controllers.
+11. Prefer small reusable services for cross-cutting concerns such as logging, storage, notifications, and DTO mapping.
 
 ## Default Assumptions
 
@@ -103,14 +120,16 @@ Unless the target repository already has a different established layout, use thi
 src/
 ├── controllers/
 ├── data/
+│   └── context.ts
 ├── dependencies/
 ├── handlers/
 ├── middlewares/
 ├── models/
 │   └── validation/
 ├── services/
-└── utilities/
+├── utilities/
     └── mappers/
+└── app.ts
 ```
 
 Use it this way:
@@ -119,11 +138,13 @@ Use it this way:
 - `src/controllers/` for request orchestration and `RestResult` responses
 - `src/services/` for business logic, auth helpers, and cross-cutting domain operations
 - `src/data/` for repositories and datastore access
+- `src/data/context.ts` for a shared repository aggregate such as `DatabaseContext` or `DataContext`
 - `src/models/validation/` for Zod schemas and request validation shapes
 - `src/middlewares/` for reusable Middy middleware
 - `src/dependencies/` for dependency wiring and composition roots
 - `src/utilities/` for shared helpers
 - `src/utilities/mappers/` for mapping and transformation helpers
+- `src/app.ts` for warm Lambda singleton wiring when the repository uses module-scope dependency exports
 
 When generating endpoint work, prefer this file flow:
 
@@ -132,6 +153,7 @@ When generating endpoint work, prefer this file flow:
 3. service in `src/services/` if business logic is more than trivial
 4. repository in `src/data/` for DynamoDB access
 5. validation schema in `src/models/validation/` when request validation is needed
+6. dependency or context wiring in `src/app.ts` or `src/data/context.ts` when new repositories or services are introduced
 
 If the repository already uses a different but coherent `src/` structure, follow that instead of forcing this one.
 
@@ -395,6 +417,10 @@ Also use the fallback references when the repository lacks:
 - an importer helper for existing resources
 - a standard API response helper such as `RestResult`
 - a JWT verification helper or token service
+- a runtime dependency container such as `src/app.ts`
+- reusable middleware for auth, validation, or HTTP error handling
+- shared services for logging, storage, notifications, or mapping
+- shared utility modules for errors, status codes, or cursor helpers
 
 In fallback mode:
 

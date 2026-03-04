@@ -17,6 +17,10 @@ Portable repository-specific references live in `references/`. Read only the fil
 - `references/response-pattern.md` for controller and middleware response conventions
 - `references/sql-drizzle-pattern.md` for Drizzle schema, repository, and `DatabaseContext` guidance
 - `references/auth-pattern.md` for Cognito authorizer, scopes, and handler-level group authorization
+- `references/runtime-composition-pattern.md` for `src/app.ts` singleton wiring and dependency aggregation
+- `references/middleware-pattern.md` for reusable Middy middleware such as auth, validation, and HTTP error handling
+- `references/services-pattern.md` for logger, storage, notification, and mapper service design
+- `references/utilities-pattern.md` for `RestResult`, error types, status codes, cursor helpers, and related utilities
 
 ## Repository Rule
 
@@ -42,10 +46,13 @@ Read only the files needed for the request, usually from these locations:
 - `src/handlers/`
 - `src/controllers/`
 - `src/middlewares/`
+- `src/services/`
 - `src/models/validation/`
 - `src/data/db/`
 - `src/data/repositories/`
+- `src/data/context.ts`
 - `src/utilities/rest-result.ts`
+- `src/utilities/`
 - `src/app.ts`
 
 Look for:
@@ -55,6 +62,8 @@ Look for:
 - which Middy middleware chain the handler follows
 - whether the controller already exists or should be added
 - whether a repository or schema already models the data
+- whether shared services or mappers already exist for the resource area
+- whether middleware or utilities already solve validation, authorization, cursor parsing, or error handling
 - whether the change needs environment variables from `getDefaultLambdaEnvironment`
 
 After discovery, work in `Local construct mode`.
@@ -81,6 +90,9 @@ Avoid hand-rolling raw API Gateway, Lambda, or persistence wiring unless the exi
 6. Reuse the local Middy middleware stack pattern: header normalization, event normalization, optional JSON parsing, auth middleware, validation middleware, and shared HTTP error handling.
 7. Return responses through `RestResult`, including `RestResult.fromDatabaseError(...)` for recognized SQL constraint failures.
 8. Preserve Cognito authorizer behavior and group-based authorization middleware when extending protected routes.
+9. Reuse `src/app.ts` singleton exports for AWS clients, repositories, and services instead of constructing them in handlers.
+10. Prefer service classes and mapper classes for cross-cutting logic that appears in more than one controller.
+11. Centralize reusable error and cursor helpers under `src/utilities/` rather than duplicating them in repositories or handlers.
 
 ## Default Assumptions
 
@@ -127,7 +139,9 @@ Use it this way:
 - `src/controllers/` contains request orchestration and response shaping
 - `src/data/db/schema/` defines Drizzle Postgres tables and relations
 - `src/data/repositories/` contains SQL access logic
-- `src/data/context.ts` wires repositories to a shared `Db`
+- `src/data/context.ts` wires repositories to a shared `Db` and exposes a shared runtime context
+- `src/services/` holds logger, storage, notification, mapper, and other integration-facing services
+- `src/utilities/` holds response helpers, error types, status codes, cursor helpers, and shared pure functions
 - `src/models/validation/` contains Zod schemas for request validation
 
 ## Construct-Centered Guidance
