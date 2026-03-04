@@ -1,6 +1,6 @@
 # JWT Pattern
 
-Use this reference when the target repository does not already have a token service or JWT verification helper, and JWT verification needs to happen inside Lambda code.
+Use this reference when JWT verification needs to happen inside Lambda code and the repository needs a reusable verification pattern.
 
 ## Goal
 

@@ -1,16 +1,14 @@
 # Response Pattern
 
-Use this reference when you need a summary of the repository's API response conventions.
-
-Read `src/utilities/rest-result.ts` first when changing runtime code.
+Use this reference when you need a reusable API response pattern for controllers and middleware.
 
 ## Goal
 
 Return consistent API Gateway proxy responses from controllers and middleware.
 
-## Repository Shape
+## Shared Response Shape
 
-This project standardizes responses through `RestResult`.
+Many repositories standardize responses through a helper such as `RestResult`.
 
 Common helpers:
 
@@ -46,6 +44,7 @@ try {
 
 ## Guidance
 
-- Prefer `RestResult` over inline `APIGatewayProxyResult` objects.
-- Let `RestResult` own CORS and shared headers.
-- Check `RestResult.fromDatabaseError(...)` before falling back to a generic 500 when repository code throws SQL constraint failures.
+- If the repository already has a helper such as `RestResult`, use it.
+- If it does not, generate one shared response helper instead of repeating inline `APIGatewayProxyResult` objects.
+- Let the shared helper own CORS and common headers.
+- Check `fromDatabaseError(...)` or an equivalent helper before falling back to a generic 500 when repository code throws recognized SQL constraint failures.

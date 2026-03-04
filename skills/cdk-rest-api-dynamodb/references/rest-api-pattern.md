@@ -1,6 +1,6 @@
 # REST API Pattern
 
-Use this reference when the target repository does not already have an API composition construct.
+Use this reference when you need a reusable API Gateway REST route composition pattern.
 
 ## Goal
 
@@ -68,8 +68,8 @@ userById.addMethod('GET', new apiGateway.LambdaIntegration(getUserFn), {
 
 ## Guidance
 
-- Make the route tree explicit with `addResource`
-- Grant read access to query handlers and read/write access to mutating handlers
-- Keep API composition in one reusable place if more than a couple of routes are involved
-- Add request models for `POST` and `PUT` if the repo already validates request bodies at the gateway layer
-- If the repo does not have a response helper like `RestResult`, return explicit `APIGatewayProxyResult` objects with stable headers and status codes
+- If the repository already has a route composition abstraction, adapt this pattern to match it.
+- If no abstraction exists, keep the route tree explicit with `addResource` and introduce one reusable place for API composition once the route count grows.
+- Grant read access to query handlers and read/write access to mutating handlers.
+- Add request models for `POST` and `PUT` when gateway-level validation is part of the architecture.
+- If the repository does not have a response helper like `RestResult`, generate one shared response utility instead of repeating inline response objects.

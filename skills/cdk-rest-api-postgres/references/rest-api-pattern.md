@@ -1,20 +1,18 @@
 # REST API Pattern
 
-Use this reference when you need a compact reminder of how this repository composes API Gateway REST routes through its local constructs.
-
-Do not use this reference to replace local code discovery. Read `lib/core-stack.ts`, `lib/constructs/rest-api.ts`, and `lib/constructs/api-models.ts` first, then use this file as a summary.
+Use this reference when you need a reusable pattern for centralized API Gateway REST route composition.
 
 ## Goal
 
-Add or modify REST endpoints in the way this project already does it.
+Add or modify REST endpoints in a way that stays centralized and repeatable.
 
-## Repository Shape
+## Common Shape
 
-- API Gateway REST API via `RestServerlessApi`
+- API Gateway REST API via a reusable stack or construct layer
 - one Lambda handler export per route
-- shared Cognito authorizer set with `setDefaultRouteOptions(...)`
-- per-route Cognito scopes passed from `lib/core-stack.ts`
-- route files wired with `handlerPath(...)` and `lambdaName(...)`
+- shared Cognito authorizer set with a default-route helper
+- per-route Cognito scopes passed from the stack layer
+- route files wired through shared path and naming helpers when available
 
 ## Baseline Example
 
@@ -55,8 +53,9 @@ api.get({
 
 ## Guidance
 
-- Keep route registration in `lib/core-stack.ts` unless the repository grows a new stack boundary.
-- Prefer the existing `get`, `getById`, `post`, `put`, and `delete` helpers over raw `addMethod`.
+- If the repository already has centralized route registration, extend it.
+- If it does not, introduce one reusable stack or construct layer instead of scattering `addMethod` calls.
+- Prefer shared route helpers such as `get`, `getById`, `post`, `put`, and `delete` over raw `addMethod` once the pattern exists.
 - `routePath` must start with `/`.
-- Shared environment variables belong in `getDefaultLambdaEnvironment()`, not duplicated inline on every route.
+- Shared environment variables belong in one common helper or route-defaults path, not duplicated inline on every route.
 - Persistence is SQL, so do not add table grants or DynamoDB-specific route options.

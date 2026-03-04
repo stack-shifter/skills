@@ -1,16 +1,14 @@
 # Importer Pattern
 
-Use this reference when stack code needs to attach to AWS resources that already exist outside this CDK stack.
-
-Read `lib/constructs/api-importer.ts` before applying changes.
+Use this reference when stack code needs a reusable pattern for attaching to AWS resources that already exist outside the current CDK stack.
 
 ## Goal
 
-Keep imported infrastructure references centralized through the repository's existing importer helper.
+Keep imported infrastructure references centralized through one helper or module.
 
-## Repository Shape
+## Common Shape
 
-The stack already imports shared resources instead of scattering direct `from*` calls through `lib/core-stack.ts`.
+Stacks often import shared resources instead of scattering direct `from*` calls through stack code.
 
 Typical imports include:
 
@@ -36,6 +34,7 @@ const domain = Importer.getApiGatewayDomainName(
 
 ## Guidance
 
-- Prefer `Importer` over inline `fromBucketName`, `fromUserPoolId`, or similar calls.
+- If the repository already has an importer helper such as `Importer`, use or extend it.
+- If it does not, generate one helper module instead of repeating inline `fromBucketName`, `fromUserPoolId`, or similar calls.
 - Keep import logic close to stack composition, not in handlers or controllers.
 - Only import what the stack actually needs. Do not add unused infrastructure references.

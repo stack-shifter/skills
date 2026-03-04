@@ -1,6 +1,6 @@
 # Response Pattern
 
-Use this reference when the target repository does not already have a response helper such as `RestResult`.
+Use this reference when you need a reusable API response pattern for controllers and handlers.
 
 ## Goal
 
@@ -63,6 +63,6 @@ function notFound(message: string): APIGatewayProxyResult {
 
 ## Guidance
 
-- Prefer a shared helper over repeating inline response objects
-- Keep success and error body shapes consistent within the repository
-- If the repo later adds a helper like `RestResult`, switch to that and stop using this fallback
+- If the repository already has a helper such as `RestResult`, use it.
+- If it does not, generate one shared helper over repeating inline response objects.
+- Keep success and error body shapes consistent within the repository.

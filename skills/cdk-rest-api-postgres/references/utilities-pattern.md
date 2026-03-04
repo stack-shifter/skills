@@ -2,13 +2,6 @@
 
 Use this reference when the repository needs shared runtime helpers that do not belong in controllers, repositories, or integration services.
 
-Read these files first when they exist:
-
-- `src/utilities/rest-result.ts`
-- `src/utilities/errors.ts`
-- `src/utilities/status-code.ts`
-- pagination or cursor helpers under `src/utilities/`
-
 ## Goal
 
 Centralize pure reusable helpers so handlers and controllers stay consistent.

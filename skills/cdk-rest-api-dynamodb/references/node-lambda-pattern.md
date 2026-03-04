@@ -1,6 +1,6 @@
 # Node Lambda Pattern
 
-Use this reference when the target repository does not already have a Lambda wrapper construct such as `NodeLambda`.
+Use this reference when you need a reusable Node.js Lambda wrapper or shared runtime defaults.
 
 ## Goal
 
@@ -57,7 +57,8 @@ const createUserFn = new lambdaNodejs.NodejsFunction(this, 'CreateUserFn', {
 
 ## Guidance
 
-- Use `NodejsFunction` for TypeScript entrypoints
+- If the repository already has a wrapper such as `NodeLambda`, extend it instead of bypassing it.
+- If it does not, use `NodejsFunction` for TypeScript entrypoints and introduce one shared helper once the pattern repeats.
 - Prefer one function per route unless the user explicitly wants a router Lambda
 - Keep environment variable names stable and tied to actual infrastructure resources
 - If the repo already has logging or tracing conventions, follow those instead

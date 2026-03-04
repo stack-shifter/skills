@@ -1,13 +1,6 @@
 # Middleware Pattern
 
-Use this reference when adding or changing Middy middleware in a Postgres-backed API.
-
-Read these files first when they exist:
-
-- `src/middlewares/authorization.middleware.ts`
-- `src/middlewares/validation.middleware.ts`
-- `src/middlewares/http-error.middleware.ts`
-- affected handler files under `src/handlers/`
+Use this reference when adding or changing reusable Middy middleware in a Postgres-backed API.
 
 ## Goal
 
@@ -34,6 +27,8 @@ export const saveProjectHandler = middy(saveProjectController)
 
 ## Guidance
 
+- If the repository already has middleware helpers, extend them.
+- If it does not, generate middleware as shared reusable units instead of embedding auth or validation in handlers.
 - Keep middleware pure and reusable across routes.
 - Put request-shape validation in middleware, not controllers.
 - Normalize claims once and pass normalized values through `requestContext.authorizer`.

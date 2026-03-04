@@ -1,6 +1,6 @@
 # DynamoDB Pattern
 
-Use this reference when the target repository does not already have a DynamoDB construct or established table pattern.
+Use this reference when you need a reusable DynamoDB table and access-pattern baseline.
 
 ## Goal
 
@@ -35,14 +35,14 @@ const usersTable = new dynamodb.TableV2(this, 'UsersTable', {
 
 ## Endpoint Wiring Rules
 
-- pass the table name to handlers via environment variables
+- pass the table name to handlers via environment variables or a shared configuration helper
 - grant `grantReadData` for read-only routes
 - grant `grantReadWriteData` for create, update, and delete routes
 - if handlers query GSIs, ensure IAM covers index resources when using custom policies
 
 ## Data Modeling Guidance
 
-- Use `PK` and `SK` for entity identity and hierarchy
-- Use `GSI1PK` and `GSI1SK` for the most important alternate access path
-- Keep handlers thin; put key construction and query details into a repository or service layer
-- If the repository already uses a single-table pattern, stay consistent with its entity prefixes and key encoding
+- If the repository already has a DynamoDB table construct or key convention, align with it.
+- Otherwise use `PK` and `SK` for entity identity and hierarchy and `GSI1PK` and `GSI1SK` for the main alternate access path.
+- Keep handlers thin; put key construction and query details into a repository or service layer.
+- Prefer introducing a shared repository or key helper when multiple handlers use the same access pattern.

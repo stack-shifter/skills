@@ -1,13 +1,6 @@
 # Runtime Composition Pattern
 
-Use this reference when the repository needs a reusable runtime composition layer with `src/app.ts` and `src/data/context.ts`.
-
-Read these files first when they exist:
-
-- `src/app.ts`
-- `src/data/context.ts`
-- `src/data/db/client.ts`
-- `src/data/repositories/`
+Use this reference when the repository needs a reusable runtime composition layer for shared clients, repositories, and services.
 
 ## Goal
 
@@ -15,8 +8,8 @@ Create one module-scope composition root that initializes long-lived clients, re
 
 ## Portable Shape
 
-- `src/app.ts` exports singleton SDK clients, service instances, mapper instances, and `dbContext`
-- `src/data/context.ts` aggregates repositories behind a single `DatabaseContext`
+- a composition module such as `src/app.ts` exports singleton SDK clients, service instances, mapper instances, and `dbContext`
+- a context module such as `src/data/context.ts` aggregates repositories behind a single `DatabaseContext`
 - controllers import from `src/app.ts`
 - handlers stay declarative and do not construct dependencies directly
 
@@ -59,7 +52,7 @@ export class DatabaseContext {
 ## Guidance
 
 - Reuse one shared `db` client; do not open ad hoc connections in handlers.
-- Add a repository to `DatabaseContext` when more than one controller or service may need it.
-- Prefer direct imports from `src/app.ts` over introducing a heavy DI container unless the repo already uses one.
+- Add a repository to `DatabaseContext` or an equivalent context object when more than one controller or service may need it.
+- Prefer one lightweight composition module over introducing a heavy DI container unless the repo already uses one.
 - Keep this module limited to wiring. Do not put request logic in it.
 - When the repository already has a composition root, extend it instead of adding a second one.

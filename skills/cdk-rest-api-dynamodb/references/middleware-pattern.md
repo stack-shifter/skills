@@ -1,12 +1,6 @@
 # Middleware Pattern
 
-Use this reference when adding or changing Middy middleware in a DynamoDB-backed API.
-
-Read these files first when they exist:
-
-- `src/middlewares/`
-- affected handler files under `src/handlers/`
-- `src/utilities/rest-result.ts` or equivalent response helper
+Use this reference when adding or changing reusable Middy middleware in a DynamoDB-backed API.
 
 ## Goal
 
@@ -40,3 +34,4 @@ export const createUserHandler = middy(createUserController)
 - Return shared response-helper objects for expected client errors.
 - Log unexpected middleware failures through the shared logger.
 - When the repository already has middleware helpers, extend them instead of reimplementing them.
+- When it does not, generate middleware as shared reusable units instead of embedding checks directly in handlers.

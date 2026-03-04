@@ -2,19 +2,13 @@
 
 Use this reference when a change affects protected routes, Cognito scopes, or in-handler authorization behavior.
 
-Read these files first:
-
-- `lib/core-stack.ts`
-- `src/middlewares/authorization.middleware.ts`
-- affected handler files under `src/handlers/`
-
 ## Goal
 
-Preserve the repository's two-layer authorization model.
+Preserve or generate a coherent two-layer authorization model.
 
-## Repository Shape
+## Common Shape
 
-This project protects routes through:
+A strong baseline protects routes through:
 
 1. API Gateway Cognito authorizer plus route scopes in CDK
 2. handler-level group checks through `authorizedGroup(...)`
@@ -48,8 +42,9 @@ export const saveProjectHandler = withWriteMiddleware(saveProjectController)
 
 ## Guidance
 
-- Preserve route scopes in `lib/core-stack.ts` when modifying protected endpoints.
-- Preserve or extend `authorizedGroup(...)` usage in handlers when group membership matters.
-- Use `ADMIN_GROUP` semantics already established in the repository.
+- If the repository already has route scopes in the stack layer, preserve them.
+- If it already has `authorizedGroup(...)` or equivalent middleware, preserve or extend it when group membership matters.
+- Use existing `ADMIN_GROUP` or equivalent group semantics when present.
+- If the repository lacks handler-level authorization middleware but needs it, generate one reusable middleware instead of inlining claim checks.
 - Prefer API Gateway Cognito authorizers over ad hoc in-Lambda JWT verification.
 - If in-Lambda JWT verification is explicitly required, add it as an exception and keep it consistent with the existing auth flow instead of replacing the Gateway authorizer.

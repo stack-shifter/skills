@@ -1,17 +1,17 @@
 ---
 name: cdk-rest-api-postgres
-description: Designs and implements REST APIs on AWS using this repository's CDK patterns first, with AWS Lambda handlers and Postgres via Drizzle as the only datastore. Use this whenever the user wants to add or modify API Gateway REST endpoints, Lambda handlers, Cognito auth, request models, reusable CDK constructs, Drizzle schema, SQL repositories, or database-backed CRUD routes in this project, even if they only ask for "an endpoint", "a handler", "a table", "a repository", or "some CDK wiring".
+description: Designs and implements REST APIs on AWS using the target repository's CDK patterns first, with AWS Lambda handlers and Postgres via Drizzle as the default datastore. Use this whenever the user wants to add or modify API Gateway REST endpoints, Lambda handlers, Cognito auth, request models, reusable CDK constructs, Drizzle schema, SQL repositories, or database-backed CRUD routes, even if they only ask for "an endpoint", "a handler", "a table", "a repository", or "some CDK wiring".
 ---
 
 ## Purpose
 
-Use this skill to compose API endpoints the way this repository already does it.
+Use this skill to design and implement Postgres-backed REST APIs on AWS in a way that fits the target repository.
 
-Treat Postgres plus Drizzle as the source of truth for persistence work. When the local CDK constructs and runtime patterns exist, extend them instead of generating generic AWS examples.
+Treat Postgres plus Drizzle as the default persistence model. When the repository already has compatible constructs and runtime patterns, extend them. When those pieces do not exist, use the references in this skill as portable patterns to generate an equivalent structure.
 
-Portable repository-specific references live in `references/`. Read only the file needed for the task:
+Portable references live in `references/`. Load only the patterns needed for the task:
 
-- `references/rest-api-pattern.md` for route composition through this repo's CDK patterns
+- `references/rest-api-pattern.md` for centralized REST route composition patterns
 - `references/node-lambda-pattern.md` for Lambda defaults and environment wiring
 - `references/importer-pattern.md` for importing existing AWS resources into the stack
 - `references/response-pattern.md` for controller and middleware response conventions
@@ -24,20 +24,21 @@ Portable repository-specific references live in `references/`. Read only the fil
 
 ## Repository Rule
 
-This skill is repository-first, not generic-first.
+This skill is repository-aware, not file-path-bound.
 
 The source of truth order is:
 
-1. The target repository's current constructs, stack code, handlers, middlewares, and data layer
-2. The guidance in this skill
+1. The target repository's current architecture, naming, and abstractions
+2. The patterns in this skill's references
+3. The inline examples in this skill
 
-If the local code differs from examples in this skill, follow local code and adapt the output to match it.
+If the local code differs from examples in this skill, follow local code and use the examples only as design guidance.
 
 ## Repository Discovery
 
 Start every use of this skill with a short discovery pass before proposing code.
 
-Read only the files needed for the request, usually from these locations:
+Inspect only the parts of the repository that matter for the request. Common places include:
 
 - `lib/core-stack.ts`
 - `lib/constructs/rest-api.ts`
@@ -66,9 +67,12 @@ Look for:
 - whether middleware or utilities already solve validation, authorization, cursor parsing, or error handling
 - whether the change needs environment variables from `getDefaultLambdaEnvironment`
 
-After discovery, work in `Local construct mode`.
+After discovery, choose the appropriate approach and state it:
 
-## Local Construct Mode
+- `Existing pattern mode`: the repository already has abstractions worth extending
+- `Pattern generation mode`: the repository is missing one or more pieces, so generate code that establishes the pattern cleanly
+
+## Existing Pattern Mode
 
 Use the repository's existing abstractions directly:
 
@@ -80,35 +84,45 @@ Use the repository's existing abstractions directly:
 
 Avoid hand-rolling raw API Gateway, Lambda, or persistence wiring unless the existing abstractions clearly cannot support the requirement.
 
+## Pattern Generation Mode
+
+Use this mode when the target repository has no reusable abstraction for one or more layers.
+
+In this mode:
+
+- use the references as guidance for the shape of the code, not as a demand that exact filenames or classes exist
+- create only the minimal new abstraction needed to keep the generated code coherent and reusable
+- prefer introducing a small reusable construct, helper, middleware, service, or repository pattern over shipping one-off route code
+- keep the generated names and folders aligned with the target repository's conventions, even when the conceptual pattern comes from this skill
+
 ## Working Rules
 
 1. Read the relevant local construct, stack, handler, controller, and repository code before editing.
-2. Build REST endpoints through `RestServerlessApi`; do not replace local route composition with raw CDK unless necessary.
+2. If the repository already has a route composition abstraction such as `RestServerlessApi`, use it. If not, generate a small reusable pattern instead of scattering raw CDK logic.
 3. Keep handlers thin. Put orchestration in controllers and persistence in `src/data/repositories/`.
-4. For database work, model schema in Drizzle and query via the shared `db` client.
-5. Reuse `DatabaseContext` from `src/app.ts` instead of creating ad hoc database clients in handlers.
-6. Reuse the local Middy middleware stack pattern: header normalization, event normalization, optional JSON parsing, auth middleware, validation middleware, and shared HTTP error handling.
-7. Return responses through `RestResult`, including `RestResult.fromDatabaseError(...)` for recognized SQL constraint failures.
+4. For database work, model schema in Drizzle and query via a shared `db` client or equivalent shared database access layer.
+5. Reuse an existing dependency composition pattern such as `DatabaseContext` or `src/app.ts` when it exists. If it does not, create a lightweight equivalent rather than wiring dependencies ad hoc in handlers.
+6. Reuse the local Middy middleware stack pattern when it exists. If it does not, generate a reusable middleware composition pattern instead of inlining validation and auth in every handler.
+7. Return responses through the local response helper when one exists. Otherwise generate one shared response utility instead of repeating inline response objects.
 8. Preserve Cognito authorizer behavior and group-based authorization middleware when extending protected routes.
-9. Reuse `src/app.ts` singleton exports for AWS clients, repositories, and services instead of constructing them in handlers.
-10. Prefer service classes and mapper classes for cross-cutting logic that appears in more than one controller.
-11. Centralize reusable error and cursor helpers under `src/utilities/` rather than duplicating them in repositories or handlers.
+9. Prefer service classes and mapper classes for cross-cutting logic that appears in more than one controller.
+10. Centralize reusable error and cursor helpers under `src/utilities/` or an equivalent shared module rather than duplicating them in repositories or handlers.
 
 ## Default Assumptions
 
 - API type: API Gateway REST API
 - Compute: one Lambda handler export per route
 - Datastore: Postgres via Drizzle and the shared Neon HTTP client
-- Runtime defaults: `NodeLambda` defaults from this repo
+- Runtime defaults: existing Lambda wrapper defaults when present, otherwise a consistent Node.js Lambda baseline
 - Auth: Cognito authorizer at API Gateway plus `authorizedGroup(...)` in handlers when needed
 - Validation: Zod schemas through `validation.middleware.ts`
-- Environment: Lambda runtime receives `DATABASE_URL` and shared app settings from `getDefaultLambdaEnvironment()`
+- Environment: Lambda runtime should receive shared database and app settings through one central helper or wiring layer when possible
 
 If the user gives constraints that conflict with these defaults, adapt and state the change.
 
 ## Project Shape
 
-Follow this repository structure:
+Use a structure like this when the repository does not already provide a better one:
 
 ```text
 lib/
@@ -132,23 +146,25 @@ src/
 └── app.ts
 ```
 
-Use it this way:
+Treat this as a conceptual layout, not a hard requirement:
 
-- `lib/core-stack.ts` registers routes and shared route defaults
+- `lib/core-stack.ts` or an equivalent stack module registers routes and shared route defaults
 - `src/handlers/` contains Middy-wrapped Lambda exports
 - `src/controllers/` contains request orchestration and response shaping
 - `src/data/db/schema/` defines Drizzle Postgres tables and relations
 - `src/data/repositories/` contains SQL access logic
-- `src/data/context.ts` wires repositories to a shared `Db` and exposes a shared runtime context
+- `src/data/context.ts` or an equivalent module wires repositories to a shared `Db` and exposes a shared runtime context
 - `src/services/` holds logger, storage, notification, mapper, and other integration-facing services
 - `src/utilities/` holds response helpers, error types, status codes, cursor helpers, and shared pure functions
 - `src/models/validation/` contains Zod schemas for request validation
 
 ## Construct-Centered Guidance
 
-### 1. `RestServerlessApi` owns route composition
+### 1. Route composition should be centralized
 
-Register routes in `lib/core-stack.ts` through:
+If the repository already has a route composition abstraction such as `RestServerlessApi`, extend it. Otherwise create one reusable route composition layer and keep route registration centralized.
+
+Common route helpers are:
 
 - `get`
 - `getById`
@@ -167,17 +183,19 @@ api.setDefaultRouteOptions({
 });
 ```
 
-Important details from this repo:
+Important pattern details:
 
 - `routePath` must start with `/`
 - default route options merge with per-route options
 - setting `authorizer: undefined` on a route removes the default authorizer
-- scopes are passed per route in `lib/core-stack.ts`
+- scopes are typically passed per route in the stack layer
 - route grants are connection-based; no table-level IAM grants are needed for SQL persistence
 
-### 2. `NodeLambda` provides runtime defaults
+### 2. Lambda runtime defaults should be centralized
 
-This repo's Lambda defaults include:
+If the repository already has a Lambda wrapper such as `NodeLambda`, use it. Otherwise generate a small shared wrapper or helper that centralizes runtime defaults.
+
+Useful baseline defaults include:
 
 - Node.js 24.x
 - ARM64
@@ -187,7 +205,7 @@ This repo's Lambda defaults include:
 - CloudWatch log group with three-month retention
 - bundling with `@aws-sdk/*` externalized
 
-`getDefaultLambdaEnvironment()` is part of the runtime contract. It currently requires:
+A shared environment helper often needs values such as:
 
 - `DATABASE_URL`
 - `FRONTEND_URL`
@@ -197,11 +215,11 @@ This repo's Lambda defaults include:
 - optional `CORS_ORIGIN`
 - optional `ADMIN_GROUP`
 
-When adding routes, inherit that shared environment unless there is a strong reason not to.
+When adding routes, inherit shared environment wiring unless there is a strong reason not to.
 
-### 3. `CoreStack` is the route composition source of truth
+### 3. Keep route wiring readable and repetitive in the right way
 
-Route wiring in this repo follows a stable pattern:
+Route wiring should follow a stable pattern such as:
 
 ```ts
 api.get({
@@ -272,7 +290,7 @@ When adding or changing persistence:
 
 ### Repository Rules
 
-Repository APIs in this repo are SQL-oriented, not key-value oriented.
+Repository APIs in this skill should stay SQL-oriented, not key-value oriented.
 
 Prefer methods that reflect domain behavior, for example:
 
@@ -318,7 +336,7 @@ When changing protected routes:
 
 ## Change Patterns
 
-When adding a new CRUD endpoint in this repo, the usual path is:
+When adding a new CRUD endpoint, the usual path is:
 
 1. add or update the Drizzle schema if persistence changes
 2. add or extend the repository

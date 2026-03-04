@@ -1,6 +1,6 @@
 # Importer Pattern
 
-Use this reference when the target repository does not already have a central importer helper for existing AWS resources.
+Use this reference when you need a reusable pattern for importing existing AWS resources into CDK code.
 
 ## Goal
 
@@ -37,6 +37,6 @@ export class Importer {
 
 ## Guidance
 
-- Use an importer helper when a stack attaches to shared infrastructure managed elsewhere
-- Prefer one helper class or module over repeated inline imports
-- If the repo already has an importer helper, use that one instead of this fallback
+- If the repository already has an importer helper, use or extend it.
+- If it does not, introduce one helper class or module instead of scattering inline `from*` imports through stack code.
+- Keep import logic close to stack composition, not in runtime code.

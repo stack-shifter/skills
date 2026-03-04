@@ -1,13 +1,6 @@
 # Runtime Composition Pattern
 
-Use this reference when the repository needs a reusable runtime composition layer with `src/app.ts`, but backed by DynamoDB instead of Drizzle.
-
-Read these files first when they exist:
-
-- `src/app.ts`
-- `src/data/context.ts`
-- `src/data/`
-- `src/services/`
+Use this reference when the repository needs a reusable runtime composition layer for shared DynamoDB clients, repositories, and services.
 
 ## Goal
 
@@ -15,9 +8,9 @@ Create one module-scope composition root that initializes AWS clients, repositor
 
 ## Portable Shape
 
-- `src/app.ts` exports singleton SDK clients and service instances
-- `src/data/context.ts` aggregates DynamoDB repositories behind a shared `DataContext`
-- controllers import from `src/app.ts`
+- a composition module such as `src/app.ts` exports singleton SDK clients and service instances
+- a context module such as `src/data/context.ts` aggregates DynamoDB repositories behind a shared `DataContext`
+- controllers import from the composition module
 - handlers stay thin and do not construct repositories or SDK clients directly
 
 ## Baseline `src/app.ts`

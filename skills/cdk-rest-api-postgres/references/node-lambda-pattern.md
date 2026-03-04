@@ -1,14 +1,12 @@
 # Node Lambda Pattern
 
-Use this reference when you need a quick summary of this repository's Lambda wrapper and runtime defaults.
-
-Read `lib/constructs/node-lambda.ts` first when making actual code changes.
+Use this reference when you need guidance for a reusable Node.js Lambda wrapper or shared runtime defaults.
 
 ## Goal
 
-Keep Lambda configuration consistent with the project's existing `NodeLambda` construct.
+Keep Lambda configuration consistent across routes, whether the repository already has a wrapper or needs one generated.
 
-## Defaults
+## Useful Defaults
 
 - runtime: `NODEJS_24_X`
 - architecture: `ARM_64`
@@ -33,9 +31,9 @@ const handler = new NodeLambda(this, "ClientsQueryHandler", {
 }).function;
 ```
 
-## Required Shared Environment
+## Shared Environment Pattern
 
-`getDefaultLambdaEnvironment()` currently requires:
+A shared environment helper often needs values such as:
 
 - `DATABASE_URL`
 - `FRONTEND_URL`
@@ -43,14 +41,15 @@ const handler = new NodeLambda(this, "ClientsQueryHandler", {
 - `SES_IDENTITY_EMAIL`
 - `SES_IDENTITY_EMAIL_ARN`
 
-It also sets:
+It may also set:
 
 - `CORS_ORIGIN`
 - `ADMIN_GROUP`
 
 ## Guidance
 
-- Prefer `NodeLambda` over direct `NodejsFunction` creation in this project.
-- Keep new environment variables explicit and additive; do not bypass `getDefaultLambdaEnvironment()`.
-- Reuse `getStackLambdaName(...)` for stack-consistent function names.
+- If the repository already has a wrapper such as `NodeLambda`, extend it instead of bypassing it.
+- If no wrapper exists, generate one small shared helper rather than redefining the same `NodejsFunction` options on every route.
+- Keep new environment variables explicit and additive through one shared helper or config path.
+- Reuse a shared naming helper when the stack already has one.
 - If a route needs more memory or another timeout, override only that property instead of redefining the whole Lambda shape.

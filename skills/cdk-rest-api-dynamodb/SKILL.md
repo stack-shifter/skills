@@ -5,11 +5,11 @@ description: Designs and implements REST APIs on AWS using the target repository
 
 ## Purpose
 
-Use this skill to compose API endpoints in a way that matches the target repository first, with DynamoDB as the default datastore.
+Use this skill to design and implement DynamoDB-backed REST APIs on AWS in a way that fits the target repository, with DynamoDB as the default datastore.
 
-When local reusable CDK constructs exist, use them as the source of truth. When they do not, fall back to a portable baseline pattern for REST API + Lambda + DynamoDB.
+When local reusable CDK constructs exist, use them as the source of truth. When they do not, use the references in this skill as portable patterns to generate an equivalent structure rather than one-off code.
 
-Portable fallback references live in `references/`. Read only the file needed for the task:
+Portable references live in `references/`. Load only the patterns needed for the task:
 
 - `references/rest-api-pattern.md` for API Gateway REST route composition
 - `references/node-lambda-pattern.md` for Lambda defaults and bundling shape
@@ -24,14 +24,15 @@ Portable fallback references live in `references/`. Read only the file needed fo
 
 ## Portability Rule
 
-This skill should work across repositories. Do not assume a specific folder such as `lib/constructs/` exists, and do not assume its APIs match this repository.
+This skill should work across repositories. Do not assume a specific folder such as `lib/constructs/` exists, and do not assume the target repository already has the same abstractions.
 
 The source of truth order is:
 
-1. The target repository's existing constructs and stack code
-2. The skill's documented fallback patterns
+1. The target repository's current architecture, naming, and abstractions
+2. The skill's documented patterns
+3. The inline examples in this skill
 
-If local code differs from the skill examples, follow local code and adapt the output to match it.
+If local code differs from the skill examples, follow local code and use the examples only as design guidance.
 
 ## Repository Discovery
 
@@ -62,10 +63,10 @@ Likely locations:
 
 After discovery, choose one mode and state it:
 
-- `Local construct mode`: extend the repository's existing abstractions
-- `Fallback mode`: generate a portable baseline pattern because no relevant abstraction exists
+- `Existing pattern mode`: extend the repository's existing abstractions
+- `Pattern generation mode`: generate the missing reusable pattern because no relevant abstraction exists
 
-## Local Construct Mode
+## Existing Pattern Mode
 
 Use this mode when the repo already has abstractions similar to the current repository, such as:
 
@@ -86,18 +87,29 @@ Use this mode when the repo already has abstractions similar to the current repo
 
 Default to DynamoDB as the datastore unless the user explicitly wants something else.
 
+## Pattern Generation Mode
+
+Use this mode when the target repository does not already provide a reusable abstraction for one or more layers.
+
+In this mode:
+
+- use the references as guidance for the shape of the generated code, not as a requirement that exact files or class names exist
+- introduce the smallest reusable abstraction that makes future endpoints easier to add
+- prefer generating a reusable route, repository, middleware, or service pattern over embedding everything in a single handler
+- keep generated names and folders aligned with the target repository's conventions
+
 ## Working Rules
 
 1. Read the relevant local construct or stack code before proposing or writing endpoint infrastructure.
 2. Prefer code snippets that mirror the actual construct APIs in the target repo instead of generic CDK examples.
-3. Build new REST endpoints through `RestServerlessApi`; do not hand-roll `RestApi`, `LambdaIntegration`, and IAM wiring unless the repo patterns cannot support the requirement.
-4. Model data access around DynamoDB tables created with `DynamoDBTable`.
+3. If the repository already has a route composition abstraction such as `RestServerlessApi`, use it. If not, generate a small reusable pattern instead of scattering raw CDK logic.
+4. Model data access around the repository's existing DynamoDB table pattern when it exists. Otherwise generate a consistent table and repository pattern.
 5. Keep examples aligned with the repository defaults: Node.js 24.x, ARM64, Middy handlers, Zod validation, and API Gateway REST API.
 6. When a stack needs to attach to existing infrastructure, prefer the local importer helper over direct `from*` imports scattered throughout the stack.
 7. When controllers or handlers return API Gateway responses, prefer the local response utility over ad hoc response objects.
 8. Prefer API Gateway Cognito authorizers for route protection when the repository already uses them for that endpoint shape. Use `aws-jwt-verify` only when JWT verification must happen inside Lambda code rather than at the API Gateway authorizer layer.
-9. Reuse existing runtime composition in `src/app.ts`, `src/dependencies/`, or equivalent rather than instantiating AWS clients, repositories, or services inside handlers.
-10. When local middleware exists, extend the existing Middy chain instead of embedding auth, validation, or error translation logic directly in controllers.
+9. Reuse existing runtime composition in `src/app.ts`, `src/dependencies/`, or equivalent when it exists. If it does not, create a lightweight equivalent rather than instantiating AWS clients, repositories, or services inside handlers.
+10. When local middleware exists, extend the existing Middy chain instead of embedding auth, validation, or error translation logic directly in controllers. If it does not, generate reusable middleware rather than inline checks.
 11. Prefer small reusable services for cross-cutting concerns such as logging, storage, notifications, and DTO mapping.
 
 ## Default Assumptions
@@ -105,7 +117,7 @@ Default to DynamoDB as the datastore unless the user explicitly wants something 
 - API type: API Gateway REST API
 - Compute: one Lambda per route unless the change is clearly tiny
 - Datastore: DynamoDB
-- Lambda runtime defaults: those from `NodeLambda`
+- Lambda runtime defaults: those from an existing Lambda wrapper when present, otherwise a consistent Node.js Lambda baseline
 - Auth: inherit existing stack defaults; if auth is unclear, prefer route-level compatibility with Cognito authorizers
 - Validation: use API Gateway request parameters/models plus existing handler-side validation
 - JWT verification library: prefer `aws-jwt-verify` only for in-Lambda verification paths
@@ -114,7 +126,7 @@ If the user gives constraints that conflict with these defaults, adapt and state
 
 ## Preferred `src/` Structure
 
-Unless the target repository already has a different established layout, use this application structure:
+Unless the target repository already has a different established layout, use an application structure like this:
 
 ```text
 src/
@@ -132,7 +144,7 @@ src/
 └── app.ts
 ```
 
-Use it this way:
+Treat this as a conceptual layout, not a hard requirement:
 
 - `src/handlers/` for Lambda entrypoints and Middy wiring
 - `src/controllers/` for request orchestration and `RestResult` responses
@@ -159,9 +171,9 @@ If the repository already uses a different but coherent `src/` structure, follow
 
 ## Construct-Centered Guidance
 
-### 1. `DynamoDBTable` is the starting point for datastore design
+### 1. Datastore design should start from a reusable table pattern
 
-Use the local construct rather than raw `dynamodb.TableV2` when adding a new table.
+Use the local construct rather than raw `dynamodb.TableV2` when adding a new table. If the repository does not have one, create a reusable table pattern instead of repeating table setup inline.
 
 ```ts
 import { DynamoDBTable } from '../constructs/dynamodb';
@@ -174,7 +186,7 @@ const usersTable = new DynamoDBTable(this, 'UsersTable', {
 }).table;
 ```
 
-Important details from the construct:
+Important pattern details:
 
 - Primary keys are fixed as `PK` and `SK`
 - `globalIndexOverload: 1` creates `GSI1` with `GSI1PK` and `GSI1SK`
@@ -183,9 +195,11 @@ Important details from the construct:
 
 Design endpoint storage and access patterns around those keys instead of inventing a different schema shape in the skill output.
 
-### 2. `RestServerlessApi` owns route composition
+### 2. Route composition should be centralized
 
-Use the route helpers exposed by the construct:
+If the repository already has a route composition abstraction such as `RestServerlessApi`, extend it. Otherwise create one reusable route composition layer and keep route registration centralized.
+
+Common route helpers are:
 
 - `get`
 - `getById`
@@ -217,7 +231,7 @@ api.setDefaultRouteOptions({
 });
 ```
 
-Important behavior from the construct:
+Important pattern behavior:
 
 - `routePath` must start with `/`
 - default route options merge with per-route options
@@ -495,7 +509,7 @@ api.put({
 });
 ```
 
-That keeps the skill focused on endpoint composition and DynamoDB-backed handler wiring, which is the main use case for this repository.
+That keeps the skill focused on endpoint composition and DynamoDB-backed handler wiring, which is the main use case for this skill.
 
 ## Response Style
 

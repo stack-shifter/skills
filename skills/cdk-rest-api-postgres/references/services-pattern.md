@@ -2,14 +2,6 @@
 
 Use this reference when the repository needs reusable service classes for logging, storage, email, or mapping.
 
-Read these files first when they exist:
-
-- `src/services/logger.service.ts`
-- `src/services/storage/storage.service.ts`
-- `src/services/messaging/`
-- `src/services/mapping/`
-- `src/app.ts`
-
 ## Goal
 
 Put external integrations and repeated translation logic into small classes that controllers can reuse.
@@ -64,7 +56,7 @@ export class StorageService {
 
 ## Guidance
 
-- Construct SDK clients once in `src/app.ts`, then inject them into service classes.
+- Construct SDK clients once in a shared composition module such as `src/app.ts`, then inject them into service classes.
 - Keep service APIs task-oriented, for example `generateUploadUrl`, `sendMessage`, or `entityToResponseDto`.
 - Use mappers for repeatable transformation rules, not for one-off controller reshaping.
 - Do not embed response formatting in services unless the repository already follows that pattern.

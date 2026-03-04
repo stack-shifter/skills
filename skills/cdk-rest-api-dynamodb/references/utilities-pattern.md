@@ -2,13 +2,6 @@
 
 Use this reference when the repository needs shared helpers that do not belong in handlers, repositories, or service integrations.
 
-Read these files first when they exist:
-
-- `src/utilities/rest-result.ts`
-- `src/utilities/errors.ts`
-- `src/utilities/status-code.ts`
-- cursor or key helper modules under `src/utilities/`
-
 ## Goal
 
 Centralize reusable response, error, and helper logic so DynamoDB controllers and handlers stay consistent.

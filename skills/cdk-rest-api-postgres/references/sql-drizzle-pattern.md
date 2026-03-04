@@ -1,19 +1,12 @@
 # SQL Drizzle Pattern
 
-Use this reference when a change touches persistence in this repository.
-
-Read these files before editing:
-
-- `src/data/db/client.ts`
-- `src/data/db/schema/`
-- `src/data/context.ts`
-- `src/data/repositories/`
+Use this reference when a change touches Postgres persistence and the repository needs a clear Drizzle-based pattern.
 
 ## Goal
 
-Implement persistence with Postgres and Drizzle in a way that matches the repository's current architecture.
+Implement persistence with Postgres and Drizzle in a way that matches the repository's current architecture when it exists, or establishes a clean architecture when it does not.
 
-## Repository Shape
+## Common Shape
 
 - shared Drizzle client in `src/data/db/client.ts`
 - schema modules under `src/data/db/schema/`
@@ -73,13 +66,13 @@ export const dbContext = new DatabaseContext(db);
 
 ## Guidance
 
-- Persistence work belongs under `src/data/`, not in handlers.
-- Reuse the shared `db` instance and `dbContext`; do not create ad hoc connections.
+- Persistence work belongs under `src/data/` or an equivalent data layer, not in handlers.
+- Reuse the shared `db` instance and `dbContext` or an equivalent composition pattern; do not create ad hoc connections.
 - Model constraints and indexes in Drizzle where possible.
 - Use repository methods that reflect domain behavior, not DynamoDB key access patterns.
 - Treat `uuid().defaultRandom()` primary keys as identifiers, not chronological cursors.
 - For cursor pagination over time-ordered results, order by a stable tuple such as `created_at` plus `id`, encode both values in the cursor, and add a matching composite index.
 - Do not paginate with `WHERE id > :cursor ORDER BY id` or equivalent patterns when `id` is a UUID v4, because random UUID ordering does not reflect insertion time.
 - When sorting by `created_at`, always include a unique tiebreaker such as `id` so pagination stays stable when multiple rows share the same timestamp.
-- Generate migrations through the repository's Drizzle workflow instead of writing unrelated SQL by hand.
+- Generate migrations through the repository's Drizzle workflow or introduce one coherent migration workflow instead of writing unrelated SQL by hand.
 - Do not reintroduce DynamoDB-shaped data modeling or dual writes.

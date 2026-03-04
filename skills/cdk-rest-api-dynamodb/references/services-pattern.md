@@ -2,14 +2,6 @@
 
 Use this reference when the repository needs reusable service classes for logging, storage, notifications, token verification, or mapping.
 
-Read these files first when they exist:
-
-- `src/services/logger.service.ts`
-- `src/services/storage/storage.service.ts`
-- `src/services/messaging/`
-- `src/services/mapping/`
-- `src/services/token.service.ts`
-
 ## Goal
 
 Put external integrations and repeated translation logic into small reusable classes rather than duplicating it in handlers or repositories.
@@ -61,7 +53,7 @@ export class StorageService {
 
 ## Guidance
 
-- Construct AWS SDK clients once in `src/app.ts`, then pass them into services.
+- Construct AWS SDK clients once in a shared composition module such as `src/app.ts`, then pass them into services.
 - Keep service methods named after domain tasks, not raw AWS commands.
 - Use mappers when query parsing, key translation, or response mapping appears in more than one controller.
 - Keep DynamoDB key-building logic close to repositories unless it is a cross-entity convention that deserves a shared helper.
