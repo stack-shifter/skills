@@ -1,10 +1,10 @@
 # Status Code Pattern
 
-Use this reference when the target repository does not already have a `StatusCode` enum in `src/utilities/`.
+Use this reference when you need a reusable status-code pattern.
 
 ## Goal
 
-Create a typed `StatusCode` enum so HTTP status codes are never written as magic numbers in controllers or middleware.
+Create a typed `StatusCode` enum or equivalent shared constant map so HTTP status codes are never written as magic numbers in controllers or middleware.
 
 ## Baseline Example
 
@@ -61,6 +61,8 @@ response.status(StatusCode.BAD_REQUEST).json(errorResponse);
 
 ## Guidance
 
+- If the repository already has shared status constants, use them.
+- If it does not, introduce one shared status-code module instead of repeating numeric literals.
 - Import `StatusCode` in every controller, middleware, and service that sets HTTP status
 - Pair with `ErrorResponseBuilder` from `references/error-pattern.md` for consistent error bodies
 - Add additional codes as the project needs them; keep the enum the single source of truth

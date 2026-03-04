@@ -1,10 +1,10 @@
 # Pagination Pattern
 
-Use this reference when the target repository does not already have pagination utilities in `src/data/`.
+Use this reference when you need a reusable pagination and cursor pattern.
 
 ## Goal
 
-Create a `CursorPagination` interface and base64 cursor encoding helpers for paginated list endpoints.
+Create a `CursorPagination` interface and cursor encoding helpers for paginated list endpoints.
 
 ## Baseline Example
 
@@ -71,6 +71,8 @@ response.status(StatusCode.OK).json(paginated);
 ## Guidance
 
 - `cursor` is omitted from the response when there is no next page — do not include it as `null` or `undefined` explicitly
+- If the repository already has pagination utilities, extend them instead of introducing a second cursor format.
+- If it does not, generate one shared cursor pattern rather than encoding cursors ad hoc in each repository.
 - Validate the cursor format in the model schema with `z.string().regex(/^[A-Za-z0-9+/=]+$/)` to catch malformed base64 early
 - Cognito pagination tokens use `encodeURIComponent` / `decodeURIComponent` instead of base64 — use this pattern only for DynamoDB `LastEvaluatedKey` cursors
 - Default limit to `10` when not provided; cap at `60` in the Zod schema

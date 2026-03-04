@@ -1,10 +1,10 @@
 # Middleware Pattern
 
-Use this reference when the target repository does not already have middleware in `src/middlewares/`.
+Use this reference when you need reusable Express middleware patterns for auth, validation, and global error handling.
 
 ## Goal
 
-Create three middleware files: Cognito JWT auth, Zod request validation, and a global error handler.
+Create reusable middleware units for Cognito JWT auth, Zod request validation, and global error handling.
 
 ## Auth Middleware
 
@@ -198,6 +198,8 @@ export const globalErrorHandler: ErrorRequestHandler = (
 ## Guidance
 
 - `authorize()` with no arguments authenticates any valid Cognito token; pass group names to also authorize
+- If the repository already has middleware helpers, extend them instead of rewriting the request pipeline.
+- If it does not, generate shared middleware units instead of embedding auth or validation directly in controllers.
 - `authorize` attaches the decoded payload to `request.user` for downstream access
 - Validation middleware returns early on failure — no `next()` on the error path
 - Store parsed Zod output on `response.locals.validated` instead of mutating `req.query`

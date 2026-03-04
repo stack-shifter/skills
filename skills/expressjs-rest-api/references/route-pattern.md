@@ -1,10 +1,10 @@
 # Route Pattern
 
-Use this reference when the target repository does not already have route files in `src/routes/`.
+Use this reference when you need a reusable router pattern for Express routes.
 
 ## Goal
 
-Create a `Router` instance that wires auth, validation middleware, and controller handlers per route.
+Create a `Router` instance or equivalent route module that wires auth, validation middleware, and controller handlers per route.
 
 ## Baseline Example
 
@@ -44,7 +44,8 @@ export default router;
 ## Guidance
 
 - `Router({ mergeParams: true })` preserves `req.params` from parent routers in nested route trees
+- If the repository already has router modules, extend them. If it does not, generate router modules rather than registering every resource directly in the app bootstrap.
 - `router.use(authorize())` applies auth to all routes; pass `authorize(['admin'])` to restrict by Cognito group
 - Chain validation middleware directly on the route before the handler: `validateParams` then `validateBody`
-- For public routes (e.g. health check), register them directly on `app` in `app.ts` without `authorize()`
-- Mount this router in `app.ts` with `app.use('/v1/items', itemRoutes)`
+- For public routes (e.g. health check), register them on the app bootstrap or a public router without `authorize()`
+- Mount the router from one centralized bootstrap or route-composition layer

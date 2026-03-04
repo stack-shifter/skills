@@ -1,10 +1,10 @@
 # Error Pattern
 
-Use this reference when the target repository does not already have typed error classes or an error response builder.
+Use this reference when you need a reusable typed-error and HTTP error-response pattern.
 
 ## Goal
 
-Create a named error class hierarchy for flow control and an `ErrorResponseBuilder` for consistent HTTP error responses.
+Create a named error class hierarchy for flow control and an `ErrorResponseBuilder` or equivalent shared pattern for consistent HTTP error responses.
 
 ## Error Classes
 
@@ -213,7 +213,8 @@ export const globalErrorHandler: ErrorRequestHandler = (error, request, response
 ## Guidance
 
 - Always set `this.name` explicitly in each class — controllers branch on `error.name` (string), not `instanceof`, so the name must survive module boundary crossings
+- If the repository already has typed errors or an error mapper, extend it instead of introducing a second hierarchy.
+- If it does not, centralize HTTP mapping in one place instead of repeating the same response shapes across controllers.
 - Add domain-specific error subclasses (e.g. `GroupNotFoundError extends IdentityError`) as needed rather than reusing generic errors
 - `ErrorResponseBuilder` uses a fluent builder pattern; chain `setType`, `setStatus`, `setMessage`, and optionally `setDetails` before calling `build()`
 - Keep `ErrorType` enum values as human-readable strings — they appear in API responses
-- In new fallback code, centralize HTTP mapping in `globalErrorHandler` instead of repeating the same response builders in every controller

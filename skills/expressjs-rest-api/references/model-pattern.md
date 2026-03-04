@@ -1,10 +1,10 @@
 # Model Pattern
 
-Use this reference when the target repository does not already have model files in `src/models/`.
+Use this reference when you need a reusable model and validation pattern.
 
 ## Goal
 
-Create TypeScript types, DTOs, and Zod v4 schemas for a domain entity in one file.
+Create TypeScript types, DTOs, and Zod v4 schemas for a domain entity in one coherent model layer.
 
 ## Baseline Example
 
@@ -74,10 +74,11 @@ export type BaseQuery = {
 ## Guidance
 
 - Use `from 'zod/v4'` — not `from 'zod'`
+- If the repository already separates DTOs, domain types, and validation schemas, adapt to that pattern instead of forcing one-file-per-entity.
+- If it does not, keeping related types and schemas together is a good default.
 - Use `z.uuid()` for UUID fields, not `z.string().uuid()`
 - Use `z.uuidv4()` in PUT schemas where the ID is part of the body
 - Pass `{ error: '...' }` as the second argument to override default Zod messages
 - Use `z.coerce.number()` for query params — they arrive as strings from Express
-- Keep one file per entity: types, DTOs, and all Zod schemas together
 - Create separate schema objects per validation target: one for `id` params, one for query, one for body
 - Expect validated and coerced values to be consumed from `response.locals.validated`, especially for query parsing in Express 5

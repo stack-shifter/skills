@@ -1,10 +1,10 @@
 # Controller Pattern
 
-Use this reference when the target repository does not already have controller files in `src/controllers/`.
+Use this reference when you need a reusable controller or route-handler pattern.
 
 ## Goal
 
-Create `RequestHandler` async functions that read request data, call services or repositories, and return consistent HTTP responses.
+Create `RequestHandler` async functions or equivalent handlers that read request data, call services or repositories, and return consistent HTTP responses.
 
 ## Baseline Example
 
@@ -68,7 +68,8 @@ export const deleteItemHandler: RequestHandler = async (
 ## Guidance
 
 - Always type as `RequestHandler` and return `Promise<void>`
-- In new fallback code, prefer throwing typed errors and letting `globalErrorHandler` map them to HTTP responses
+- If the repository already has controller or handler conventions, extend them.
+- If it does not, prefer throwing typed errors and letting `globalErrorHandler` map them to HTTP responses
 - Only keep controller-local `try/catch` when the repository already uses that pattern or when a handler needs special response shaping
 - `return` after every `response.status(...).json(...)` to prevent double-send
 - Set `Location` header on 201 Created responses

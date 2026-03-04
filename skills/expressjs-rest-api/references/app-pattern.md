@@ -1,10 +1,10 @@
 # App Pattern
 
-Use this reference when the target repository does not already have an Express app entry point.
+Use this reference when you need a reusable Express app bootstrap pattern.
 
 ## Goal
 
-Create a single `src/app.ts` that loads environment variables, wires middleware, mounts routes, and starts the server.
+Create one app bootstrap module that loads environment variables, wires middleware, mounts routes, and starts the server.
 
 ## Baseline Example
 
@@ -92,11 +92,13 @@ If the repository already uses `nodemon`, `ts-node-dev`, or another runner, keep
 
 ## Guidance
 
+- If the repository already has an app bootstrap, extend it instead of creating another one.
+- If it does not, generate one bootstrap module instead of spreading setup across multiple files.
 - `process.loadEnvFile()` is built into modern Node releases — no `dotenv` package needed
-- Load the env file immediately after imports in `app.ts`, and avoid module-level `process.env` reads in imported files before bootstrap runs
+- Load the env file immediately after imports in the bootstrap module, and avoid module-level `process.env` reads in imported files before bootstrap runs
 - Set `trust proxy` so `req.ip` and `req.ips` reflect the real client IP behind a load balancer
 - Register `globalErrorHandler` last — Express 5 auto-forwards async rejections to it
-- Use `/v1/` prefix on all resource routes; the health check is public with no auth middleware
+- Use one consistent API prefix such as `/v1/` when the repository does not already use another prefixing scheme
 - In Express 5, `express.json()` and `express.urlencoded()` are built-in; no `body-parser` needed
 - For new apps, add graceful shutdown for HTTP server, database pool, and AWS clients if the repo does not already provide it
-- Follow the repo's existing development runner first; for new TypeScript apps prefer `tsx watch src/app.ts` over `nodemon`
+- Follow the repo's existing development runner first; for new TypeScript apps prefer `tsx watch` over `nodemon`

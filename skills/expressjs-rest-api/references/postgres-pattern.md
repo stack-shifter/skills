@@ -1,6 +1,6 @@
 # Repository Pattern (Postgres)
 
-Use this reference when the target repository uses Postgres and does not already have repository classes in `src/data/`.
+Use this reference when you need a reusable Postgres repository pattern for an Express API.
 
 For DynamoDB projects, use `references/repository-pattern.md` instead.
 
@@ -14,7 +14,7 @@ For DynamoDB projects, use `references/repository-pattern.md` instead.
 
 ## Goal
 
-Define a Drizzle schema, create a typed repository class implementing `Repository<T>`, and wire the Postgres connection in the dependency file.
+Define a Drizzle schema, create a typed repository class implementing a shared repository contract, and wire the Postgres connection through one shared access pattern.
 
 ## Schema Definition
 
@@ -184,9 +184,9 @@ function mapRowToItem(row: typeof items.$inferSelect): Item {
 }
 ```
 
-## Client Setup
+## Client Setup Pattern
 
-The Drizzle client lives inside `src/data/` alongside the schema and repositories — not in `src/dependencies/`. The `src/dependencies/` folder is reserved for AWS clients (Cognito, DynamoDB, etc.).
+The Drizzle client can live alongside the schema and repositories or behind a composition module. Keep one coherent pattern for how repositories receive database access.
 
 ```ts
 // src/data/client.ts
@@ -199,7 +199,7 @@ const sql = postgres(process.env.DATABASE_URL!);
 export const db = drizzle(sql, { schema });
 ```
 
-Repositories import `db` directly from `client.ts`:
+Repositories may import `db` directly from a shared client module:
 
 ```ts
 // src/data/item.repository.ts (top of file)
@@ -252,6 +252,8 @@ DATABASE_URL=postgres://user:pass@your-host:5432/myapp_prod
 ## Guidance
 
 - For UUID primary keys, do not paginate by `id` alone when using random UUID generation; order by a stable monotonic column such as `createdAt` plus `id`
+- If the repository already uses another ORM, adapt repository shape and transaction boundaries to that ORM rather than forcing Drizzle-specific patterns.
+- If it does not yet have a repository layer, generate one reusable repository and shared DB access pattern instead of putting SQL in controllers.
 - Keep the cursor payload aligned with the sort order so pagination remains deterministic
 
 ## Migration Commands

@@ -1,12 +1,12 @@
 # Repository Pattern (DynamoDB)
 
-Use this reference when the target repository uses DynamoDB and does not already have repository classes in `src/data/`.
+Use this reference when you need a reusable DynamoDB repository pattern for an Express API.
 
 For Postgres projects, use `references/postgres-pattern.md` instead.
 
 ## Goal
 
-Create a typed DynamoDB repository class that implements a `Repository<T>` interface and wraps all errors as `DatabaseError`.
+Create a typed DynamoDB repository class that implements a shared repository contract and wraps infrastructure failures as domain or database errors.
 
 ## Repository Interface
 
@@ -180,7 +180,7 @@ export class ItemRepository implements Repository<Item> {
 }
 ```
 
-## Dependency Wiring
+## Dependency Wiring Pattern
 
 ```ts
 // src/dependencies/db.deps.ts
@@ -208,6 +208,8 @@ export const itemRepository = new ItemRepository(dynamoDBClient);
 ## Guidance
 
 - Keys use `ENTITY#id` prefix pattern: `PK: 'ITEM#<id>'`, `SK: 'METADATA#<id>'`
+- If the repository already has a repository contract or dependency composition pattern, adapt this shape to it instead of introducing a second one.
+- If it does not, generate one reusable repository and composition pattern rather than calling the AWS SDK directly from controllers.
 - Always catch DynamoDB SDK errors and rethrow as `DatabaseError` — controllers do the HTTP mapping
 - Use `ExpressionAttributeNames` to avoid DynamoDB reserved word conflicts in update expressions
 - In production, supply no credentials — the SDK picks up the IAM role from the compute environment
