@@ -87,7 +87,7 @@ Use this mode when the repo already has abstractions similar to the current repo
 
 Default to DynamoDB as the datastore unless the user explicitly wants something else.
 
-## Pattern Generation Mode
+## Pattern Generation Details
 
 Use this mode when the target repository does not already provide a reusable abstraction for one or more layers.
 
@@ -380,7 +380,7 @@ Prefer methods such as:
 
 This keeps CORS headers, content types, status codes, and error body shapes consistent across endpoints.
 
-If no local response helper exists, use the fallback references and produce standard `APIGatewayProxyResult` objects instead.
+If no local response helper exists, use the reference patterns and produce standard `APIGatewayProxyResult` objects instead.
 
 ### 7. Prefer `aws-jwt-verify` only when Cognito authorizers are not handling auth
 
@@ -420,13 +420,13 @@ Avoid:
 
 If the repository does not already have a token service or helper, load `references/jwt-pattern.md`.
 
-## Fallback Mode
+## Pattern Generation Mode
 
 Use this mode only when the repository does not already expose relevant constructs or composition helpers.
 
-When using fallback mode, load the relevant file from `references/` instead of relying only on the inline examples in this skill.
+When using pattern generation mode, load the relevant file from `references/` instead of relying only on the inline examples in this skill.
 
-Also use the fallback references when the repository lacks:
+Also use the reference patterns when the repository lacks:
 
 - an importer helper for existing resources
 - a standard API response helper such as `RestResult`
@@ -436,12 +436,12 @@ Also use the fallback references when the repository lacks:
 - shared services for logging, storage, notifications, or mapping
 - shared utility modules for errors, status codes, or cursor helpers
 
-In fallback mode:
+In pattern generation mode:
 
 - generate a reusable API construct or stack pattern instead of one-off infrastructure code
 - use API Gateway REST API unless the user explicitly wants HTTP API
 - use one Lambda per route by default
-- use a DynamoDB table with `PK` and `SK`
+- choose a single-table or multi-table pattern deliberately instead of defaulting by habit
 - keep examples concise and portable
 
 Portable baseline:
@@ -467,7 +467,7 @@ table.grantReadWriteData(createUserFn);
 api.root.addResource('users').addMethod('POST', new apiGateway.LambdaIntegration(createUserFn));
 ```
 
-If the repository later adds its own constructs, stop using the fallback and move back to local construct mode.
+If the repository later adds its own constructs, stop using the generated pattern and move back to existing pattern mode.
 
 ## Request Modeling
 
@@ -483,15 +483,44 @@ If the repo already has API models or Zod schemas for the feature area, reuse th
 
 If the repo already has a standard API response helper, reuse it in the controller or handler examples.
 
-## DynamoDB-First Endpoint Design
+## DynamoDB Data Modeling Strategy
 
-When designing endpoints, bias toward patterns that fit the table construct and common single-table usage:
+Choose the table strategy deliberately before generating repositories and routes.
+
+Default to single-table design when:
+
+- the API serves one bounded domain with several related entity types
+- entities are commonly fetched together or by shared access patterns
+- relationship traversal, fan-out queries, or timeline-style reads matter
+- the repository does not already have separate tables with strong boundaries
+
+Prefer multi-table design when:
+
+- entities have independent lifecycles and very different throughput or retention needs
+- access patterns are simple and mostly one-entity-at-a-time
+- operational isolation matters more than shared-query flexibility
+- the repository already organizes persistence as separate tables per aggregate
+
+If the user does not specify, use this rule:
+
+- single-table by default for greenfield DynamoDB APIs
+- multi-table when extending a repository that already uses separate tables
+
+When using single-table design, bias toward patterns like:
 
 - Store entities under `PK` and `SK`
 - Use GSIs for alternate lookup patterns
 - Pass tables through `grantTableAccess`
 - Pass table names through `environmentVariables`
 - Keep Lambda handlers thin and push key construction/query logic into repositories or services
+
+When using multi-table design, keep these rules:
+
+- one repository per table or aggregate root
+- name environment variables per table explicitly
+- grant each route only the tables it needs
+- avoid re-creating single-table key helpers where simple table-specific queries are clearer
+- keep cross-table workflows in services, not handlers
 
 Prefer examples such as:
 
@@ -509,16 +538,17 @@ api.put({
 });
 ```
 
-That keeps the skill focused on endpoint composition and DynamoDB-backed handler wiring, which is the main use case for this skill.
+That keeps the skill focused on endpoint composition and DynamoDB-backed handler wiring while still making the table strategy explicit.
 
 ## Response Style
 
 When using this skill, produce:
 
 1. A short statement of the endpoint(s) being added or changed
-2. A note saying whether you are using `Local construct mode` or `Fallback mode`
+2. A note saying whether you are using `Existing pattern mode` or `Pattern generation mode`
 3. CDK snippets based on the local constructs when present, or the portable baseline when not
-4. Any handler, model, or repository follow-on work needed to make the endpoint functional
-5. Explicit assumptions where auth, table shape, or validation is ambiguous
+4. The chosen DynamoDB table strategy: `single-table` or `multi-table`, with one sentence of reasoning when you are generating the pattern
+5. Any handler, model, or repository follow-on work needed to make the endpoint functional
+6. Explicit assumptions where auth, table shape, or validation is ambiguous
 
 Avoid generic AWS guidance when a repository-specific construct snippet would answer the request better. Treat the repository's code as authoritative and the skill as workflow guidance, not as a competing source of truth.

@@ -13,6 +13,24 @@ Create DynamoDB-backed endpoint infrastructure with predictable access patterns.
 - optional GSIs for alternate lookup patterns
 - table name derived from service name and stage
 
+## Strategy Choice
+
+Default to single-table design for greenfield DynamoDB APIs unless the repository already has a clear multi-table boundary.
+
+Choose single-table when:
+
+- multiple entity types participate in shared query patterns
+- you need hierarchical reads, timelines, or alternate access paths across entity types
+- future flexibility matters more than table-by-table operational isolation
+
+Choose multi-table when:
+
+- aggregates are operationally independent
+- access patterns are simple and table-local
+- the repository already uses one-table-per-aggregate conventions
+
+Do not mix single-table and multi-table casually inside the same feature area. Pick one strategy for the feature and keep repository APIs aligned with it.
+
 ## Baseline Example
 
 ```ts
@@ -46,3 +64,5 @@ const usersTable = new dynamodb.TableV2(this, 'UsersTable', {
 - Otherwise use `PK` and `SK` for entity identity and hierarchy and `GSI1PK` and `GSI1SK` for the main alternate access path.
 - Keep handlers thin; put key construction and query details into a repository or service layer.
 - Prefer introducing a shared repository or key helper when multiple handlers use the same access pattern.
+- For single-table designs, encode entity type and relationship intent into key prefixes.
+- For multi-table designs, keep each table schema simple and avoid inventing single-table style prefixes without a real need.

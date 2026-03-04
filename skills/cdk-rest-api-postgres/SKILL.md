@@ -213,7 +213,7 @@ A shared environment helper often needs values such as:
 - `SES_IDENTITY_EMAIL`
 - `SES_IDENTITY_EMAIL_ARN`
 - optional `CORS_ORIGIN`
-- optional `ADMIN_GROUP`
+- optional `ALLOWED_GROUP`
 
 When adding routes, inherit shared environment wiring unless there is a strong reason not to.
 
@@ -236,7 +236,7 @@ Prefer:
 
 - one handler file per resource area
 - exported handler name constants when they already exist
-- `handlerPath(...)` and `lambdaName(...)` helpers from `lib/core-stack.ts`
+- shared path and naming helpers when the stack already has them
 - shared Cognito authorizer defaults with per-route scopes
 
 ## Runtime Guidance
@@ -254,19 +254,26 @@ Handlers should follow the local Middy pattern:
 
 Keep handler files mostly declarative. They should compose middleware around controller functions rather than implement business logic directly.
 
+If the repository does not yet have a consistent handler pattern, generate one that keeps:
+
+- middleware composition in the handler
+- orchestration in the controller
+- persistence in repositories
+- shared concerns in middleware, services, and utilities
+
 ### Controllers
 
 Controllers should:
 
 - read typed event data after middleware validation
-- call `dbContext` and other shared services from `src/app.ts`
+- call `dbContext` and other shared services from a shared composition module
 - map entities through the repository and mapper layers
 - return `RestResult` responses
 - translate repository failures with `RestResult.fromDatabaseError(...)` when applicable
 
 ### Data Layer
 
-Persistence work belongs under `src/data/`.
+Persistence work belongs under `src/data/` or an equivalent data layer.
 
 Preferred flow:
 
@@ -276,17 +283,17 @@ Preferred flow:
 4. wire the repository through `src/data/context.ts` if it is a new repository
 5. consume it from controllers via `dbContext`
 
-Do not open raw database connections inside handlers or controllers. Reuse the shared `db` and `DatabaseContext`.
+Do not open raw database connections inside handlers or controllers. Reuse the shared `db` and `DatabaseContext` or an equivalent context pattern.
 
 ### Drizzle Schema Rules
 
 When adding or changing persistence:
 
 - use `pgTable`, typed columns, indexes, enums, and relations from Drizzle
-- keep relations centralized in `src/data/db/schema/relations.schema.ts` when appropriate
-- mirror existing schema naming and table file conventions
+- keep relations centralized in a dedicated schema module when appropriate
+- mirror existing schema naming and table file conventions when they already exist
 - prefer SQL constraints and indexes over application-only uniqueness logic
-- generate migrations with the repo's Drizzle workflow instead of inventing manual SQL files
+- generate migrations with the repo's Drizzle workflow, or introduce one coherent migration workflow instead of inventing manual SQL files
 
 ### Repository Rules
 
@@ -303,9 +310,16 @@ Prefer methods that reflect domain behavior, for example:
 
 For cursor pagination, do not assume UUID v4 primary keys are time-ordered. Prefer a stable ordered tuple such as `created_at` plus `id`, and make the cursor carry both values.
 
+When generating a repository pattern from scratch:
+
+- define repository methods around domain actions rather than query-builder details
+- keep transaction boundaries above the repository only when multiple repositories must coordinate
+- keep mapping from raw row shape to API response out of the handler
+- avoid importing Drizzle schema objects directly into handlers unless the repository layer does not exist yet
+
 ## Response and Error Rules
 
-Use `src/utilities/rest-result.ts` for all API responses.
+Use `src/utilities/rest-result.ts` or an equivalent shared response helper for all API responses.
 
 Prefer:
 
@@ -322,16 +336,16 @@ For recognized Postgres constraint failures, prefer `RestResult.fromDatabaseErro
 
 ## Auth Rules
 
-This repo protects routes in two layers:
+Protected routes should usually use two layers:
 
 1. API Gateway Cognito authorizer and scopes in CDK
 2. handler-level group authorization via `authorizedGroup(...)`
 
 When changing protected routes:
 
-- preserve route scopes in `lib/core-stack.ts`
+- preserve route scopes in the stack layer
 - preserve or extend group checks in handlers
-- use `ADMIN_GROUP` semantics already present in the repo
+- use existing `ALLOWED_GROUP` semantics when present
 - do not reintroduce removed client-account auth flows
 
 ## Change Patterns
@@ -342,17 +356,26 @@ When adding a new CRUD endpoint, the usual path is:
 2. add or extend the repository
 3. add or extend the controller
 4. add or extend the handler with Middy middleware and validation
-5. register the route in `lib/core-stack.ts`
-6. add focused Jest coverage under `test/`
+5. register the route in the stack or route-composition layer
+6. add focused tests for the changed behavior
 
 When the request is only infrastructure-facing, still confirm whether handler, controller, repository, validation, or environment wiring also needs to move with it.
+
+When generating the architecture from scratch, prefer this order:
+
+1. define or update the data model and migration
+2. define repository methods around the use case
+3. define controller behavior and response mapping
+4. add handler middleware and validation
+5. register the route and shared environment wiring
+6. add tests around the repository, controller, or handler boundary that changed
 
 ## Definition of Done
 
 A change using this skill is usually complete when:
 
 - the route is registered through the local CDK abstractions
-- the handler matches the repository's Middy style
+- the handler matches the repository's Middy style or establishes one coherent style
 - controller and repository responsibilities stay separated
 - persistence uses Drizzle and Postgres only
-- tests cover the changed behavior
+- tests cover the changed behavior at the right layer

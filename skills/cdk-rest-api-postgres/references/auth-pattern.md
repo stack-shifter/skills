@@ -44,7 +44,7 @@ export const saveProjectHandler = withWriteMiddleware(saveProjectController)
 
 - If the repository already has route scopes in the stack layer, preserve them.
 - If it already has `authorizedGroup(...)` or equivalent middleware, preserve or extend it when group membership matters.
-- Use existing `ADMIN_GROUP` or equivalent group semantics when present.
+- Use existing `ALLOWED_GROUP` or equivalent group semantics when present.
 - If the repository lacks handler-level authorization middleware but needs it, generate one reusable middleware instead of inlining claim checks.
 - Prefer API Gateway Cognito authorizers over ad hoc in-Lambda JWT verification.
 - If in-Lambda JWT verification is explicitly required, add it as an exception and keep it consistent with the existing auth flow instead of replacing the Gateway authorizer.

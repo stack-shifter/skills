@@ -44,7 +44,7 @@ A shared environment helper often needs values such as:
 It may also set:
 
 - `CORS_ORIGIN`
-- `ADMIN_GROUP`
+- `ALLOWED_GROUP`
 
 ## Guidance
 
