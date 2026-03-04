@@ -13,6 +13,7 @@
     - [`cdk-rest-api-dynamodb`](#cdk-rest-api-dynamodb)
     - [`cdk-rest-api-postgres`](#cdk-rest-api-postgres)
     - [`expressjs-rest-api`](#expressjs-rest-api)
+    - [`repo-templatizer`](#repo-templatizer)
   - [What Are Skills?](#what-are-skills)
   - [Building Custom Skills](#building-custom-skills)
     - [Skill Structure](#skill-structure)
@@ -72,6 +73,14 @@ Builds Express 5 REST APIs with TypeScript using repo patterns first.
 
 ```bash
 npx skills add stack-shifter/skills --skill expressjs-rest-api
+```
+
+### `repo-templatizer`
+
+Converts an existing repository into a reusable GitHub template while preserving reusable structure and infrastructure patterns.
+
+```bash
+npx skills add stack-shifter/skills --skill repo-templatizer
 ```
 
 ---
