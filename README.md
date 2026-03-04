@@ -14,12 +14,10 @@
     - [`cdk-rest-api-postgres`](#cdk-rest-api-postgres)
     - [`expressjs-rest-api`](#expressjs-rest-api)
   - [What Are Skills?](#what-are-skills)
-  - [The Open Agent Skills Ecosystem](#the-open-agent-skills-ecosystem)
   - [Building Custom Skills](#building-custom-skills)
     - [Skill Structure](#skill-structure)
     - [Creating a Skill from Scratch](#creating-a-skill-from-scratch)
   - [Installing Skills](#installing-skills)
-    - [Updating Installed Skills](#updating-installed-skills)
   - [Resources](#resources)
 
 ---
@@ -28,13 +26,14 @@
 
 This repository is a curated AI agent skills library maintained by Stack Shifter. Its purpose is to build, organize, and share reusable **custom skills** for AI agents — drawing from the [Agent Skills standard](https://agentskills.io/) and Anthropic's official [skills repository](https://github.com/anthropics/skills).
 
-Skills let you extend AI agents with procedural knowledge: teach them your workflows, enforce your conventions, and automate repeatable tasks consistently across every session.
+Skills let you extend AI agents with procedural knowledge: teach them your workflows, enforce your conventions, and automate repeatable tasks consistently across every session. Skills in this repo are installable via [skills.sh](https://skills.sh/) with `npx skills add stack-shifter/skills`.
 
 ---
 
 ## Skills in This Repository
 
 A brief description of every skill available in this library, along with its individual install command.
+
 ### `branch-risk-review`
 
 Reviews the current branch against `main` for breaking changes and merge risk.
@@ -90,22 +89,6 @@ Skills can teach an agent how to:
 
 ---
 
-## The Open Agent Skills Ecosystem
-
-[skills.sh](https://skills.sh/) is the open registry for discovering, publishing, and installing agent skills across the AI ecosystem. Skills published here are installable with a single command:
-
-```bash
-npx skills add <owner/repo>
-```
-
-To install the skills in this repository:
-
-```bash
-npx skills add stack-shifter/skills
-```
-
----
-
 ## Building Custom Skills
 
 This repository uses the [anthropics/skills](https://github.com/anthropics/skills) repository as both a reference and foundation. Anthropic's skills system defines the standard for how skills are structured and consumed by Claude and other compatible agents.
@@ -132,15 +115,21 @@ description: A clear description of what this skill does and when to use it
 
 Instructions that the agent will follow when this skill is active.
 
-## Examples
+## When to Use
 
-- Example usage 1
-- Example usage 2
+- Trigger condition 1
+- Trigger condition 2
+
+## Steps
+
+1. First action the agent should take
+2. Second action
+3. Third action
 
 ## Guidelines
 
-- Guideline 1
-- Guideline 2
+- Keep outputs concise
+- Always confirm before destructive actions
 ```
 
 **Required frontmatter fields:**
@@ -156,82 +145,33 @@ Instructions that the agent will follow when this skill is active.
 
 Choose a lowercase, hyphen-separated name that describes the task, for example `release-checklist` or `aws-cost-audit`. This name becomes both the folder name and the `name` field in frontmatter.
 
-**2. Create the skill folder and file**
+**2. Scaffold the skill**
+
+Use the `skills` CLI to generate the template automatically:
 
 ```bash
-mkdir my-skill
-touch my-skill/SKILL.md
+npx skills init my-skill
 ```
 
-**3. Write the frontmatter**
+This creates `my-skill/SKILL.md` pre-populated with the structure shown in [Skill Structure](#skill-structure).
 
-Open `my-skill/SKILL.md` and add the required YAML frontmatter at the top:
-
-```markdown
----
-name: my-skill
-description: A short, specific description of what this skill does and when the agent should use it.
----
-```
+**3. Fill in the frontmatter**
 
 The `description` field is especially important — agents use it to decide when to activate the skill, so be precise about the trigger context.
 
 **4. Write the instructions**
 
-Below the frontmatter, add a Markdown body with clear, imperative instructions. A recommended structure:
+Replace the placeholder body with clear, imperative instructions following the structure in [Skill Structure](#skill-structure).
 
-```markdown
-# My Skill
+**5. Validate and register**
 
-Brief summary of what this skill does.
+Before committing, confirm the folder contains a valid `SKILL.md` with both `name` and `description`, and that any referenced file paths match the actual repository layout. Then install and exercise the skill in a compatible agent (see [Installing Skills](#installing-skills)).
 
-## When to Use
-
-- Trigger condition 1
-- Trigger condition 2
-
-## Steps
-
-1. First action the agent should take
-2. Second action
-3. Third action
-
-## Examples
-
-- `my-skill do X` — does X
-- `my-skill do Y` — does Y
-
-## Guidelines
-
-- Keep outputs concise
-- Always confirm before destructive actions
-```
-
-**5. Validate your skill**
-
-Before committing, confirm:
-
-- The folder contains a valid `SKILL.md`
-- Frontmatter includes both `name` and `description`
-- Any file paths or commands referenced in the skill match the actual repository layout
-
-You can test by installing the repo locally:
-
-```bash
-npx skills add stack-shifter/skills
-```
-
-Then exercise the skill in a compatible agent to verify it activates and behaves as expected.
-
-**6. Register the skill in this README**
-
-Add a row to the [Skills in This Repository](#skills-in-this-repository) section with a short description and the per-skill install command:
+Finally, add an entry to the [Skills in This Repository](#skills-in-this-repository) section with a short description and the per-skill install command:
 
 ```bash
 npx skills add stack-shifter/skills --skill my-skill
 ```
-
-Use the [official template](https://github.com/anthropics/skills/tree/main/template) from `anthropics/skills` as an additional reference.
 
 ---
 
@@ -251,40 +191,7 @@ npx skills add stack-shifter/skills
 npx skills add stack-shifter/skills --skill <skill-name>
 ```
 
-**Claude Code:**
-
-```bash
-/plugin marketplace add stack-shifter/skills
-```
-
-### Updating Installed Skills
-
-If you already installed this repo's skills and want the latest version after a skill changes, re-run the same `skills add` command.
-
-**Refresh all skills from this repo:**
-
-```bash
-npx skills add stack-shifter/skills
-```
-
-**Refresh one specific skill:**
-
-```bash
-npx skills add stack-shifter/skills --skill <skill-name>
-```
-
-Examples:
-
-```bash
-npx skills add stack-shifter/skills --skill spec-workflow
-npx skills add stack-shifter/skills --skill branch-risk-review
-```
-
-Use this after:
-
-- editing a local skill in this repository
-- pulling new changes from GitHub
-- renaming or revising a skill and wanting the installed copy updated
+Re-running either command also updates previously installed skills to the latest version.
 
 ---
 
