@@ -1,6 +1,6 @@
 ---
 name: repo-templatizer
-description: Prepares an existing repository to become a reusable GitHub template. Use this whenever the user wants to genericize a repo, scrub project-specific domain logic, preserve reusable structure, turn a real project into starter boilerplate, or make a codebase safe to publish as a template. This includes requests to keep `src/` and `test/` layouts, retain reusable services, rewrite the README into placeholders, or preserve CDK `constructs/` code while removing app-specific implementation.
+description: Prepares an existing repository to become a reusable GitHub template. Use this whenever the user wants to genericize a repo, scrub project-specific domain logic, preserve reusable structure, turn a real project into starter boilerplate, or make a codebase safe to publish as a template. This includes requests to keep `src/` and `test/` layouts, retain reusable services, rewrite the README into placeholders, or preserve CDK `constructs/` code while removing app-specific implementation. Also use this when the user wants to check for or remove branding, org references, company names, badges, account IDs, or project-specific identifiers without restructuring the codebase — this activates Branding Audit Mode.
 ---
 
 # Repo Templatizer
@@ -31,6 +31,90 @@ Source of truth order:
 3. Small generated examples only where needed
 
 If the repository already has a clean reusable pattern, keep it. Do not replace a good abstraction with a more generic but worse one.
+
+## Mode Selection
+
+Before starting, identify which mode applies based on the user's request.
+
+- **Full Templatization Mode** (default): Run the full skill — Discovery Pass through Output Expectations. Use when the user wants to genericize the whole repo, scrub domain logic, or produce a reusable template.
+- **Branding Audit Mode**: Run only the branding pass described below. Use when the user explicitly asks to check for or remove branding, org references, or project-specific identifiers without touching source code structure or implementation.
+
+If the user's request is ambiguous, default to Full Templatization Mode and note what was done.
+
+---
+
+## Branding Audit Mode
+
+Use this mode when the user wants branding removed or reviewed without restructuring the codebase.
+
+**Scope:** Surface identifiers only. Do not touch `src/`, `test/`, domain logic, folder structure, or boilerplate examples.
+
+### What to Scan
+
+Inspect the following locations for branding:
+
+- `README.md` and any other root-level docs (`CONTRIBUTING.md`, `CHANGELOG.md`, etc.)
+- Package manifests: `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `build.gradle`, `pom.xml`, etc.
+- CI/CD configs: `.github/workflows/`, `.circleci/`, `Jenkinsfile`, `bitbucket-pipelines.yml`, etc.
+- Environment example files: `.env.example`, `.env.sample`, `config/example.*`
+- Infrastructure configs: any file referencing account IDs, org names, hosted URLs, or service names
+- License files: license holder name or org name
+- Docker and container configs: image names, registry URLs, org prefixes
+- `package.json` `name`, `repository`, `homepage`, `bugs`, and `author` fields
+- Git config or GitHub Actions that reference the old repo owner or org
+
+### What Counts as Branding
+
+Flag and replace:
+
+- Company or organization names (full name, abbreviation, or slug)
+- Product or project names that are not generic
+- Personal names in author fields, license headers, or commit templates
+- Hosted URLs or domains tied to the old org or product
+- Account IDs, org slugs, tenant IDs, or deployment identifiers embedded in config
+- Badges (shields.io, etc.) referencing the old repo owner, package registry name, or CI status
+- Repository URLs, npm/PyPI/crates package names, or container registry paths
+- Email addresses tied to the old org
+
+### What to Leave Alone
+
+Do not modify:
+
+- `src/`, `test/`, or any implementation files
+- Generic dependency names, framework names, or tool versions
+- Placeholder values already using a bracket or `TODO` convention
+- CI steps or scripts that describe build behavior, not identity
+
+### Replacement Strategy
+
+Replace identified branding with safe placeholders:
+
+| Category | Placeholder |
+|---|---|
+| Project / product name | `[PROJECT_NAME]` |
+| Organization / company | `[ORG_NAME]` |
+| Repository URL | `[REPO_URL]` |
+| Package name | `[PACKAGE_NAME]` |
+| Deployed service URL | `[SERVICE_URL]` |
+| Account or tenant ID | `[ACCOUNT_ID]` |
+| Author name | `[AUTHOR_NAME]` |
+| Author email | `[AUTHOR_EMAIL]` |
+| Container image | `[CONTAINER_IMAGE]` |
+| Registry path | `[REGISTRY_PATH]` |
+
+Use consistent placeholders throughout — if `[PROJECT_NAME]` appears in the README it should appear in `package.json` too.
+
+### Output for Branding Audit Mode
+
+Report:
+
+- Every file where branding was found and replaced, with the specific field or line
+- Any branding that was flagged but not replaced (explain why)
+- A list of all unique placeholders introduced so the template consumer knows what to search-replace after cloning
+
+Do not produce a `TEMPLATE_CUSTOMIZATION.md` unless the user asks for it. Do not rewrite the README beyond replacing branding tokens.
+
+---
 
 ## Discovery Pass
 
