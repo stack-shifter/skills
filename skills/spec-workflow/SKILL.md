@@ -130,7 +130,7 @@ Within each phase, include:
 - validation commands to run after the phase's tasks are complete
 - a gate describing what must be true before the phase is considered complete
 
-The final phase must include a task to update `README.md` to reflect any user-visible changes introduced by the feature.
+The final phase must include a task to update `README.md` to reflect any user-visible changes introduced by the feature. This update must integrate the new content into the existing README — preserve all sections that are unaffected by the feature. Do not rewrite or replace the README wholesale. Read the current README first, identify which sections need to change, and edit only those sections.
 
 ## Holistic Validation Pass
 
