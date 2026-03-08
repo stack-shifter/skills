@@ -21,6 +21,7 @@ Portable references live in `references/`. Load only the patterns needed for the
 - `references/middleware-pattern.md` for reusable Middy middleware such as auth, validation, and HTTP error translation
 - `references/services-pattern.md` for portable logger, storage, notification, and mapper service design
 - `references/utilities-pattern.md` for shared response helpers, error types, status codes, cursor helpers, and other runtime utilities
+- `references/schedule-pattern.md` for EventBridge-triggered scheduled Lambda jobs
 
 ## Portability Rule
 
@@ -50,6 +51,10 @@ Search for:
 - standardized API response utilities
 - JWT verification helpers or token services
 - Stack files that already compose routes, auth, models, or permissions
+- scheduled job constructs for EventBridge-triggered Lambdas (e.g., `lib/constructs/schedule.ts`)
+- `HANDLER` registry constants exported from each handler file (used as the authoritative source for `handlerName` values in route registration)
+- single-table key convention files such as `src/data/db/utils/conventions.ts` (`EntityType`, `KeyPrefix`)
+- soft-delete cleanup helpers such as `src/data/db/utils/soft-delete.ts` (`buildCleanupItem`, `buildRetentionDueAt`)
 
 Likely locations:
 
@@ -238,105 +243,35 @@ Important pattern behavior:
 - setting `authorizer: undefined` on a route explicitly removes the default authorizer
 - DynamoDB permissions are granted automatically from `grantTableAccess`
 - `GET` routes get read permissions; `POST`, `PUT`, and `DELETE` get read/write permissions
-- GSI query and scan permissions are added on `/index/*`
+- the construct automatically appends an explicit IAM policy for `dynamodb:Query`, `dynamodb:Scan`, and `dynamodb:DescribeTable` on both `tableArn` and `tableArn/index/*` for every route — do not add duplicate index policies manually
+- `environmentVariables` in `setDefaultRouteOptions` is inherited by all routes unless overridden; use `getDefaultLambdaEnvironment()` from `node-lambda.ts` when the repository provides it
 
 ### 3. Use route snippets based on the local `RestRouteOptions`
 
-When documenting or generating an endpoint, prefer snippets like these.
+Each handler file exports a `HANDLER` registry constant whose values are the exported function name strings.
+Always import and use the registry in the stack — never write `handlerName` as a bare string literal. A rename in the handler file will not be caught at compile time without the registry.
 
-Create route:
+If the repository provides `getStackLambdaName` and `getDefaultLambdaEnvironment` helpers (e.g., from `node-lambda.ts`), use them to build `lambdaName` and environment variables consistently. See `references/node-lambda-pattern.md` for the helpers and usage.
 
-```ts
-import * as path from 'node:path';
-import { CREATE_USER_HANDLER } from '../../src/handlers/users/create-user.handler';
-
-api.post({
-    routePath: '/users',
-    lambdaName: `CreateUser${props.deploymentStage}`,
-    filePath: path.join(__dirname, '../../src/handlers/users/create-user.handler.ts'),
-    handlerName: CREATE_USER_HANDLER,
-    description: 'Create a user record',
-    model: createUserModel,
-});
-```
-
-List route with query parameters:
-
-```ts
-import { LIST_USERS_HANDLER } from '../../src/handlers/users/list-users.handler';
-
-api.get({
-    routePath: '/users',
-    lambdaName: `ListUsers${props.deploymentStage}`,
-    filePath: path.join(__dirname, '../../src/handlers/users/list-users.handler.ts'),
-    handlerName: LIST_USERS_HANDLER,
-    description: 'List users',
-    requestParameters: {
-        'method.request.querystring.cursor': false,
-        'method.request.querystring.limit': false,
-    },
-});
-```
-
-Get-by-id route with path parameter:
-
-```ts
-import { GET_USER_HANDLER } from '../../src/handlers/users/get-user.handler';
-
-api.getById({
-    routePath: '/users/{id}',
-    lambdaName: `GetUser${props.deploymentStage}`,
-    filePath: path.join(__dirname, '../../src/handlers/users/get-user.handler.ts'),
-    handlerName: GET_USER_HANDLER,
-    description: 'Get a user by id',
-    requestParameters: {
-        'method.request.path.id': true,
-    },
-});
-```
-
-Public route that overrides a default authorizer:
-
-```ts
-api.get({
-    routePath: '/health',
-    lambdaName: `Health${props.deploymentStage}`,
-    filePath: path.join(__dirname, '../../src/handlers/health.handler.ts'),
-    handlerName: HEALTH_HANDLER,
-    description: 'Health check',
-    authorizer: undefined,
-});
-```
+See `references/rest-api-pattern.md` for the full HANDLER registry template, route snippet examples (POST, GET, GET-by-id, public override), and the handler file template.
 
 ### 4. `NodeLambda` defines the Lambda baseline
 
 If you need a standalone Lambda or need to explain route internals, use the local construct shape.
 
-```ts
-import { NodeLambda } from '../constructs/node-lambda';
-
-const fn = new NodeLambda(this, 'CreateUserFn', {
-    lambdaName: `CreateUser${props.deploymentStage}`,
-    filePath: path.join(__dirname, '../../src/handlers/users/create-user.handler.ts'),
-    handlerName: CREATE_USER_HANDLER,
-    description: 'Create a user record',
-    environmentVariables: {
-        USERS_TABLE_NAME: usersTable.tableName,
-    },
-}).function;
-```
-
 Repository-specific defaults already baked in:
 
 - runtime: `NODEJS_24_X`
 - architecture: `ARM_64`
-- memory: `256`
+- memory: `128`
 - timeout: `15`
 - tracing: active
 - log retention: three months
 - `@aws-sdk/*` excluded from bundle
 
 Do not restate conflicting defaults in skill-generated examples.
+
+If the repository exports helper functions from `node-lambda.ts` for env validation, function naming, and SES policy, use them — do not build these inline. See `references/node-lambda-pattern.md` for the helpers, their signatures, and usage examples.
 
 ### 5. Prefer `Importer` for existing infrastructure
 
@@ -382,7 +317,19 @@ This keeps CORS headers, content types, status codes, and error body shapes cons
 
 If no local response helper exists, use the reference patterns and produce standard `APIGatewayProxyResult` objects instead.
 
-### 7. Prefer `aws-jwt-verify` only when Cognito authorizers are not handling auth
+### 7. Use `ScheduleLambda` for EventBridge-triggered background jobs
+
+If the repository exposes a scheduled Lambda construct (e.g., `lib/constructs/schedule.ts`), use it for any non-API background work such as hard-delete cleanup, digest emails, or data expiry sweeps. Do not create a raw `events.Rule` + `NodejsFunction` pair inline.
+
+Key points:
+
+- `tableGrants` is for `ScheduleLambda` — do not use `grantTableAccess` (that is only for API routes)
+- the scheduled Lambda follows the same `HANDLER` registry pattern as API handlers
+- the handler entrypoint type is `ScheduledEvent` from `aws-lambda`, not `APIGatewayProxyEvent`
+
+See `references/schedule-pattern.md` for the full construct snippet, handler template, and all key options.
+
+### 8. Prefer `aws-jwt-verify` only when Cognito authorizers are not handling auth
 
 If a route is already protected by an API Gateway Cognito authorizer, do not add duplicate JWT verification in the Lambda by default.
 
@@ -513,6 +460,20 @@ When using single-table design, bias toward patterns like:
 - Pass tables through `grantTableAccess`
 - Pass table names through `environmentVariables`
 - Keep Lambda handlers thin and push key construction/query logic into repositories or services
+- If the repository defines `EntityType` and `KeyPrefix` constants (e.g., `src/data/db/utils/conventions.ts`), add new entity types there rather than inventing ad-hoc string literals inside a repository. See `references/dynamodb-pattern.md` for the conventions shape.
+- Build PK/SK values inline inside each repository for readability; do not create a shared key-builder factory
+
+**Soft-delete pattern for deletable entities**
+
+If the repository uses soft-delete with a scheduled hard-delete cleanup job, follow this pattern for any new entity that can be deleted via the API:
+
+1. The repository `remove` method sets `isDeleted: true` on the primary row, immediately hard-deletes all secondary rows (lookup pointers, directory entries, uniqueness locks), then writes a cleanup marker using `buildCleanupItem()` from `src/data/db/utils/soft-delete.ts`. Secondary rows are gone immediately — only the primary row survives until the cleanup job runs.
+2. Use `buildRetentionDueAt(deletedAt, retentionHours)` to compute the due timestamp for the marker's SK. Read the retention window from `process.env.SOFT_DELETE_RETENTION_HOURS` (default `"168"`).
+3. The scheduled cleanup job reads cleanup markers by SK range (keys `<= now`) and hard-deletes both the marker and the primary row.
+4. Wire the cleanup Lambda using the `ScheduleLambda` construct (see §7 above) — not a separate raw Lambda.
+5. For cascade roots (entities whose deletion must propagate to children), call each child repository's `remove()` for all active descendants before soft-deleting the root. The `SOFT_DELETE_CASCADE_MATRIX` in `src/data/db/utils/soft-delete.ts` declares the traversal: `ORG → ["PROJECT", "CLIENT"]` and `PROJECT → ["UPDATE", "SHARE_LINK", "PROJECT_CLIENT_EDGE"]`.
+
+See `references/dynamodb-pattern.md` for the full soft-delete repository code example.
 
 When using multi-table design, keep these rules:
 

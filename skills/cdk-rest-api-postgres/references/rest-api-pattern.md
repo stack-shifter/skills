@@ -20,6 +20,7 @@ Add or modify REST endpoints in a way that stays centralized and repeatable.
 import * as path from "node:path";
 import { RestServerlessApi } from "./constructs/rest-api";
 import { getDefaultLambdaEnvironment, getStackLambdaName } from "./constructs/node-lambda";
+import { CLIENT_HANDLER } from "../src/handlers/client.handler";
 
 const api = new RestServerlessApi(this, "Intake", {
     name: `ClientIntake-${props.deploymentStage}`,
@@ -45,9 +46,58 @@ api.get({
     routePath: "/clients",
     lambdaName: lambdaName("ClientsQuery"),
     filePath: handlerPath("src/handlers/client.handler.ts"),
-    handlerName: "queryClientHandler",
+    handlerName: CLIENT_HANDLER.QUERY,
     description: "/clients",
     scopes: [readAuthScope],
+});
+```
+
+## HANDLER Registry Pattern
+
+Handler files should export a typed registry constant so `handlerName` values in the stack are never bare strings. A rename in the handler file will not be caught at compile time without the registry.
+
+```ts
+// src/handlers/client.handler.ts
+export const CLIENT_HANDLER = {
+    QUERY: "queryClientHandler",
+    GET_BY_ID: "getByIdClientHandler",
+    SAVE: "saveClientHandler",
+    UPDATE_BY_ID: "updateByIdClientHandler",
+    DELETE: "deleteClientHandler",
+} as const;
+```
+
+Import and use the registry in the stack for all route wiring:
+
+```ts
+import { CLIENT_HANDLER } from "../src/handlers/client.handler";
+import { PROJECT_HANDLER } from "../src/handlers/project.handler";
+
+api.get({
+    routePath: "/clients",
+    lambdaName: lambdaName("ClientsQuery"),
+    filePath: handlerPath("src/handlers/client.handler.ts"),
+    handlerName: CLIENT_HANDLER.QUERY,
+    description: "/clients",
+    scopes: readScopes,
+});
+
+api.getById({
+    routePath: "/clients/{clientId}",
+    lambdaName: lambdaName("ClientsGetById"),
+    filePath: handlerPath("src/handlers/client.handler.ts"),
+    handlerName: CLIENT_HANDLER.GET_BY_ID,
+    description: "/clients/{clientId}",
+    scopes: readScopes,
+});
+
+api.post({
+    routePath: "/clients",
+    lambdaName: lambdaName("ClientsPost"),
+    filePath: handlerPath("src/handlers/client.handler.ts"),
+    handlerName: CLIENT_HANDLER.SAVE,
+    description: "/clients",
+    scopes: writeScopes,
 });
 ```
 
@@ -56,6 +106,7 @@ api.get({
 - If the repository already has centralized route registration, extend it.
 - If it does not, introduce one reusable stack or construct layer instead of scattering `addMethod` calls.
 - Prefer shared route helpers such as `get`, `getById`, `post`, `put`, and `delete` over raw `addMethod` once the pattern exists.
+- Never write `handlerName` as a bare string literal — always import and use the `HANDLER` registry constant from the handler file.
 - `routePath` must start with `/`.
 - Shared environment variables belong in one common helper or route-defaults path, not duplicated inline on every route.
 - Persistence is SQL, so do not add table grants or DynamoDB-specific route options.

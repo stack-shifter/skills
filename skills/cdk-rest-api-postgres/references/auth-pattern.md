@@ -16,6 +16,8 @@ A strong baseline protects routes through:
 ## Baseline Route Example
 
 ```ts
+import { PROJECT_HANDLER } from "../src/handlers/project.handler";
+
 api.setDefaultRouteOptions({
     authorizer: api.createCognitoAuthorizer(userPool),
     environmentVariables: getDefaultLambdaEnvironment(),
@@ -25,7 +27,7 @@ api.post({
     routePath: "/projects",
     lambdaName: lambdaName("ProjectsPost"),
     filePath: handlerPath("src/handlers/project.handler.ts"),
-    handlerName: "saveProjectHandler",
+    handlerName: PROJECT_HANDLER.SAVE,
     description: "/projects",
     scopes: [writeAuthScope],
 });

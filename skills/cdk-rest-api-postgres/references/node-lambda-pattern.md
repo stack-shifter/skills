@@ -10,7 +10,7 @@ Keep Lambda configuration consistent across routes, whether the repository alrea
 
 - runtime: `NODEJS_24_X`
 - architecture: `ARM_64`
-- memory: `256`
+- memory: `128`
 - timeout: `15` seconds
 - tracing: active
 - log group retention: three months
@@ -19,12 +19,13 @@ Keep Lambda configuration consistent across routes, whether the repository alrea
 ## Baseline Example
 
 ```ts
+import { CLIENT_HANDLER } from "../src/handlers/client.handler";
 import { NodeLambda } from "./constructs/node-lambda";
 
 const handler = new NodeLambda(this, "ClientsQueryHandler", {
     lambdaName: getStackLambdaName("ClientsQuery", props.deploymentStage),
     filePath: handlerPath("src/handlers/client.handler.ts"),
-    handlerName: "queryClientHandler",
+    handlerName: CLIENT_HANDLER.QUERY,
     description: "/clients",
     environmentVariables: getDefaultLambdaEnvironment(),
     memory: 512,
@@ -45,6 +46,27 @@ It may also set:
 
 - `CORS_ORIGIN`
 - `ALLOWED_GROUP`
+
+## Stack Helpers
+
+If the repository exports helper functions from `node-lambda.ts`, use them in the stack instead of building strings inline:
+
+- `getDefaultLambdaEnvironment()` — validates all required env vars and returns a shared environment map; use as `environmentVariables` in `setDefaultRouteOptions` or per-route options
+- `getStackLambdaName(scope, name)` — derives a unique, stack-scoped Lambda function name; use to build `lambdaName` for every route
+- `createSendEmailPolicy(scope)` — produces a minimal IAM policy for SES `SendEmail`; attach only to routes that send email
+
+```ts
+import { createSendEmailPolicy, getDefaultLambdaEnvironment, getStackLambdaName } from './constructs/node-lambda';
+
+const sharedEnvironment = getDefaultLambdaEnvironment();
+const lambdaName = (name: string) => getStackLambdaName(this, name);
+
+// For routes that send email, attach the SES policy to the returned Lambda function.
+const fn = api.post({ ... });
+fn.addToRolePolicy(createSendEmailPolicy(this));
+```
+
+Read `lib/constructs/node-lambda.ts` to confirm the actual exported names and signatures before using these.
 
 ## Guidance
 

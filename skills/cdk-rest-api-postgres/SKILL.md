@@ -21,6 +21,7 @@ Portable references live in `references/`. Load only the patterns needed for the
 - `references/middleware-pattern.md` for reusable Middy middleware such as auth, validation, and HTTP error handling
 - `references/services-pattern.md` for logger, storage, notification, and mapper service design
 - `references/utilities-pattern.md` for `RestResult`, error types, status codes, cursor helpers, and related utilities
+- `references/schedule-pattern.md` for EventBridge-triggered scheduled Lambda jobs
 
 ## Repository Rule
 
@@ -66,6 +67,7 @@ Look for:
 - whether shared services or mappers already exist for the resource area
 - whether middleware or utilities already solve validation, authorization, cursor parsing, or error handling
 - whether the change needs environment variables from `getDefaultLambdaEnvironment`
+- whether handler files export a typed `HANDLER` registry constant to use for `handlerName` wiring
 
 After discovery, choose the appropriate approach and state it:
 
@@ -199,7 +201,7 @@ Useful baseline defaults include:
 
 - Node.js 24.x
 - ARM64
-- 256 MB memory unless overridden
+- 128 MB memory unless overridden
 - 15 second timeout unless overridden
 - active X-Ray tracing
 - CloudWatch log group with three-month retention
@@ -217,27 +219,32 @@ A shared environment helper often needs values such as:
 
 When adding routes, inherit shared environment wiring unless there is a strong reason not to.
 
+Three helpers are commonly used together in the stack: `getDefaultLambdaEnvironment()`, `getStackLambdaName()`, and `createSendEmailPolicy()`. See `references/node-lambda-pattern.md` for their signatures, usage, and the pattern for attaching the SES policy.
+
 ### 3. Keep route wiring readable and repetitive in the right way
 
-Route wiring should follow a stable pattern such as:
-
-```ts
-api.get({
-    routePath: "/clients",
-    lambdaName: lambdaName("ClientsQuery"),
-    filePath: handlerPath("src/handlers/client.handler.ts"),
-    handlerName: "queryClientHandler",
-    description: "/clients",
-    scopes: readScopes,
-});
-```
+Never write `handlerName` as a bare string literal — a rename in the handler file will not be caught at compile time without a registry. Each handler file should export a typed `HANDLER` registry constant, which the stack imports and uses for all route wiring.
 
 Prefer:
 
 - one handler file per resource area
-- exported handler name constants when they already exist
-- shared path and naming helpers when the stack already has them
+- `HANDLER` registry constants exported from each handler file and imported by the stack
+- `lambdaName()` and `handlerPath()` local helpers wrapping `getStackLambdaName` and `path.join`
 - shared Cognito authorizer defaults with per-route scopes
+
+See `references/rest-api-pattern.md` for the full registry template, multi-route stack examples, and the `setDefaultRouteOptions` setup.
+
+### 4. Use `ScheduleLambda` for EventBridge-triggered background jobs
+
+If the repository exposes a scheduled Lambda construct (e.g., `lib/constructs/schedule.ts`), use it for any non-API background work such as soft-delete cleanup, digest emails, or data expiry sweeps. Do not create a raw `events.Rule` + `NodejsFunction` pair inline.
+
+Key points:
+
+- the scheduled Lambda follows the same `HANDLER` registry pattern as API handlers
+- the handler entrypoint type is `ScheduledEvent` from `aws-lambda`, not `APIGatewayProxyEvent`
+- for Postgres-backed jobs, pass `DATABASE_URL` through `getDefaultLambdaEnvironment()` — no table-level IAM grants are needed
+
+See `references/schedule-pattern.md` for the full construct snippet, handler template, and all key options.
 
 ## Runtime Guidance
 
