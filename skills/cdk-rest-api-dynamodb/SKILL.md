@@ -22,6 +22,7 @@ Portable references live in `references/`. Load only the patterns needed for the
 - `references/services-pattern.md` for portable logger, storage, notification, and mapper service design
 - `references/utilities-pattern.md` for shared response helpers, error types, status codes, cursor helpers, and other runtime utilities
 - `references/schedule-pattern.md` for EventBridge-triggered scheduled Lambda jobs
+- `references/schema-reference-pattern.md` for generating and maintaining `docs/schema-reference.md` — the human-readable DynamoDB schema companion file
 
 ## Portability Rule
 
@@ -55,6 +56,7 @@ Search for:
 - `HANDLER` registry constants exported from each handler file (used as the authoritative source for `handlerName` values in route registration)
 - single-table key convention files such as `src/data/db/utils/conventions.ts` (`EntityType`, `KeyPrefix`)
 - soft-delete cleanup helpers such as `src/data/db/utils/soft-delete.ts` (`buildCleanupItem`, `buildRetentionDueAt`)
+- an existing `docs/schema-reference.md` (or equivalent) to understand the current table schema before adding entities or access patterns
 
 Likely locations:
 
@@ -116,6 +118,7 @@ In this mode:
 9. Reuse existing runtime composition in `src/app.ts`, `src/dependencies/`, or equivalent when it exists. If it does not, create a lightweight equivalent rather than instantiating AWS clients, repositories, or services inside handlers.
 10. When local middleware exists, extend the existing Middy chain instead of embedding auth, validation, or error translation logic directly in controllers. If it does not, generate reusable middleware rather than inline checks.
 11. Prefer small reusable services for cross-cutting concerns such as logging, storage, notifications, and DTO mapping.
+12. After any change that adds or modifies entities, GSIs, access patterns, item families, or item shapes, update `docs/schema-reference.md` in the same task. If the file does not exist, generate it from the repository's current repositories and key conventions. Load `references/schema-reference-pattern.md` for the required structure and update rules.
 
 ## Default Assumptions
 
@@ -329,7 +332,37 @@ Key points:
 
 See `references/schedule-pattern.md` for the full construct snippet, handler template, and all key options.
 
-### 8. Prefer `aws-jwt-verify` only when Cognito authorizers are not handling auth
+### 8. Keep `docs/schema-reference.md` current with every data model change
+
+`docs/schema-reference.md` is the human-readable DynamoDB schema companion. It tracks GSIs, core access patterns, item families, item shapes, lookup and uniqueness relationships, and operational notes. Treat it as a required deliverable whenever the data model changes.
+
+**When to update:**
+
+- new entity type, item family, or PK/SK pattern
+- new or changed GSI
+- new access pattern tied to a route or internal operation
+- attribute added, removed, or renamed on an existing item shape
+- new lookup, uniqueness lock, or cleanup marker variant
+- change to cascade delete behavior or soft-delete retention logic
+
+**How to update:**
+
+Load `references/schema-reference-pattern.md` for the exact section structure and update rules. In brief:
+
+1. Add new GSIs under `## GSIs`.
+2. Add new access patterns under `## Core Access Patterns` in the same bullet style.
+3. Add new item family lines under `## Item Families`.
+4. Add new `### <Entity> <type>` JSON blocks under `## Item Shapes`.
+5. Update `## Lookup and Uniqueness Items` if new lookup or lock rows are introduced.
+6. Update `## Operational Notes` only when pagination, seeding, or migration behavior changes.
+
+Do not reorder or reformat sections not touched by the current change. Do not defer the update to a follow-up task.
+
+**Generating from scratch:**
+
+If `docs/schema-reference.md` does not exist, generate it by reading every repository under `src/data/repositories/`, the entity type and key prefix constants, and the soft-delete helpers. See `references/schema-reference-pattern.md` for the full generation procedure.
+
+### 9. Prefer `aws-jwt-verify` only when Cognito authorizers are not handling auth
 
 If a route is already protected by an API Gateway Cognito authorizer, do not add duplicate JWT verification in the Lambda by default.
 
