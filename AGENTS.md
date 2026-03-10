@@ -5,15 +5,16 @@
 Prefer code that is:
 
 - Agents must prioritize simple, readable, and maintainable code over clever or highly abstract solutions.
-- Prefer explicit control flow (if statements, for loops, early returns) and clear variable names rather than functional chaining or complex patterns.
-- Some duplication is acceptable if it improves readability and keeps logic easy to follow.
-- Avoid introducing abstractions, utilities, or libraries unless the same logic appears at least three times.
-- When multiple solutions exist, always choose the most boring, straightforward implementation that a mid-level to senior developer could understand quickly.
-- Include reasonable, concise comments to explain intent and non-obvious logic, but avoid excessive comments that clutter or restate obvious code.
-- Do not generalize code for hypothetical future use; implement only what is required for the current feature.
+- When multiple solutions exist, always choose the most boring, straightforward implementation that a junior to mid-level developer could understand quickly.
+- Prefer clear control flow (if statements, for loops, early returns) and descriptive variable names; avoid deeply chained functional pipelines or overly condensed one-line logic. Prefer code that can be easily stepped through in a debugger.
 - Prefer small functions with a single responsibility and avoid deeply nested logic.
 - Follow existing patterns in the repository instead of introducing new architectural styles.
-- Do not introduce complex design patterns (factories, builders, dependency injection layers, etc.) unless required.
+- Some duplication is acceptable if it improves readability and keeps logic easy to follow.
+- Avoid introducing abstractions, utilities, or libraries unless the same logic appears three or more times.
+- Do not generalize code for hypothetical future use; implement only what is required for the current feature.
+- Do not introduce complex design patterns (factories, builders, dependency injection layers, etc.) unless clearly required.
+- Include reasonable, concise comments to explain intent and non-obvious logic, but avoid excessive comments that clutter or restate obvious code.
+- More complex implementations are acceptable when they clearly improve correctness, performance, or maintainability; in these cases, include concise comments explaining why the added complexity is justified.
 
 ## Project Structure & Module Organization
 
