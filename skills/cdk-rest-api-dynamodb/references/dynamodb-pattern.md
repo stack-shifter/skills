@@ -185,3 +185,101 @@ ExpressionAttributeValues: { ':isDeleted': false }
 ```
 
 **Share-link variant** — for entities with an expiry date, a second cleanup reason `"EXPIRES"` is also supported. Pass `reason: 'EXPIRES'` and set `scheduledAt` to the expiry timestamp rather than the retention due-at timestamp.
+
+## Transactional Writes
+
+Use `TransactWriteCommand` when a create or update operation must write several items atomically — for example, the primary entity record, a directory entry for sorted list queries, and a uniqueness lock, all in one shot. If any item's condition fails, DynamoDB rolls back the entire batch.
+
+Prepare all items before sending the transaction so the code reads top-to-bottom as a data declaration rather than nested AWS calls.
+
+```ts
+import { TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
+
+async create(input: IEntity): Promise<IEntity> {
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    const nameLower = normalize(input.name);
+
+    // Primary record
+    const primary = {
+        PK: `ENTITY#${id}`,
+        SK: `ENTITY#${id}`,
+        entityType: EntityType.ENTITY,
+        entityId: id,
+        name: input.name,
+        nameLower,
+        createdAt: now,
+        updatedAt: now,
+        isDeleted: false,
+        deletedAt: null,
+    };
+
+    // Directory entry — enables sorted list queries via GSI or SK range scan
+    const directory = {
+        PK: 'DIRECTORY#ENTITY',
+        SK: `NAME#${nameLower}#ENTITY#${id}`,
+        entityType: EntityType.ENTITY_DIRECTORY,
+        entityId: id,
+        name: input.name,
+        nameLower,
+        updatedAt: now,
+    };
+
+    // Uniqueness lock — prevents two records with the same normalized name
+    const lock = {
+        PK: `UNIQ#ENTITY#NAME#${nameLower}`,
+        SK: `UNIQ#ENTITY#NAME#${nameLower}`,
+        entityType: EntityType.UNIQUE_LOCK,
+        entityId: id,
+    };
+
+    await this.db.send(
+        new TransactWriteCommand({
+            TransactItems: [
+                {
+                    Put: {
+                        TableName: this.tableName,
+                        Item: primary,
+                        // Reject duplicates — fails the whole transaction if the key already exists
+                        ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+                    },
+                },
+                {
+                    Put: {
+                        TableName: this.tableName,
+                        Item: directory,
+                        ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+                    },
+                },
+                {
+                    Put: {
+                        TableName: this.tableName,
+                        Item: lock,
+                        ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+                    },
+                },
+            ],
+        }),
+    );
+
+    return (await this.findById(id))!;
+}
+```
+
+**Update with lock rotation** — when a mutable field (such as a name) is part of the uniqueness lock or directory key, an update must delete the old auxiliary rows and write new ones in the same transaction:
+
+```ts
+await this.db.send(
+    new TransactWriteCommand({
+        TransactItems: [
+            { Put: { TableName: this.tableName, Item: updatedPrimary } },
+            { Delete: { TableName: this.tableName, Key: { PK: oldLockPk, SK: oldLockPk } } },
+            { Put: { TableName: this.tableName, Item: newLock, ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)' } },
+            { Delete: { TableName: this.tableName, Key: { PK: oldDirectoryPk, SK: oldDirectorySk } } },
+            { Put: { TableName: this.tableName, Item: newDirectory } },
+        ],
+    }),
+);
+```
+
+**Error handling** — `ConditionalCheckFailedException` and `TransactionCanceledException` signal a constraint violation. Map them in the controller using `RestResult.fromDatabaseError(error)` rather than inspecting the error name directly in the repository.

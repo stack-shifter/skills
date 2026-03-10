@@ -424,30 +424,7 @@ In pattern generation mode:
 - choose a single-table or multi-table pattern deliberately instead of defaulting by habit
 - keep examples concise and portable
 
-Portable baseline:
-
-```ts
-const table = new dynamodb.TableV2(this, 'UsersTable', {
-    partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
-    sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
-});
-
-const createUserFn = new lambdaNodejs.NodejsFunction(this, 'CreateUserFn', {
-    runtime: lambda.Runtime.NODEJS_24_X,
-    architecture: lambda.Architecture.ARM_64,
-    entry: path.join(__dirname, '../../src/handlers/create-user.handler.ts'),
-    handler: 'CREATE_USER_HANDLER',
-    environment: {
-        USERS_TABLE_NAME: table.tableName,
-    },
-});
-
-table.grantReadWriteData(createUserFn);
-
-api.root.addResource('users').addMethod('POST', new apiGateway.LambdaIntegration(createUserFn));
-```
-
-If the repository later adds its own constructs, stop using the generated pattern and move back to existing pattern mode.
+For a portable table + Lambda + route baseline, load `references/dynamodb-pattern.md` and `references/node-lambda-pattern.md`. If the repository later adds its own constructs, move back to existing pattern mode.
 
 ## Request Modeling
 
@@ -496,17 +473,7 @@ When using single-table design, bias toward patterns like:
 - If the repository defines `EntityType` and `KeyPrefix` constants (e.g., `src/data/db/utils/conventions.ts`), add new entity types there rather than inventing ad-hoc string literals inside a repository. See `references/dynamodb-pattern.md` for the conventions shape.
 - Build PK/SK values inline inside each repository for readability; do not create a shared key-builder factory
 
-**Soft-delete pattern for deletable entities**
-
-If the repository uses soft-delete with a scheduled hard-delete cleanup job, follow this pattern for any new entity that can be deleted via the API:
-
-1. The repository `remove` method sets `isDeleted: true` on the primary row, immediately hard-deletes all secondary rows (lookup pointers, directory entries, uniqueness locks), then writes a cleanup marker using `buildCleanupItem()` from `src/data/db/utils/soft-delete.ts`. Secondary rows are gone immediately — only the primary row survives until the cleanup job runs.
-2. Use `buildRetentionDueAt(deletedAt, retentionHours)` to compute the due timestamp for the marker's SK. Read the retention window from `process.env.SOFT_DELETE_RETENTION_HOURS` (default `"168"`).
-3. The scheduled cleanup job reads cleanup markers by SK range (keys `<= now`) and hard-deletes both the marker and the primary row.
-4. Wire the cleanup Lambda using the `ScheduleLambda` construct (see §7 above) — not a separate raw Lambda.
-5. For cascade roots (entities whose deletion must propagate to children), call each child repository's `remove()` for all active descendants before soft-deleting the root. The `SOFT_DELETE_CASCADE_MATRIX` in `src/data/db/utils/soft-delete.ts` declares the traversal: `ORG → ["PROJECT", "CLIENT"]` and `PROJECT → ["UPDATE", "SHARE_LINK", "PROJECT_CLIENT_EDGE"]`.
-
-See `references/dynamodb-pattern.md` for the full soft-delete repository code example.
+**Soft-delete pattern for deletable entities** — if the repository uses soft-delete with a scheduled hard-delete cleanup job, apply it to any new deletable entity. See `references/dynamodb-pattern.md` for the full three-step `remove` implementation, cascade matrix, and share-link variant.
 
 When using multi-table design, keep these rules:
 
@@ -516,23 +483,7 @@ When using multi-table design, keep these rules:
 - avoid re-creating single-table key helpers where simple table-specific queries are clearer
 - keep cross-table workflows in services, not handlers
 
-Prefer examples such as:
-
-```ts
-api.put({
-    routePath: '/users/{id}',
-    lambdaName: `UpdateUser${props.deploymentStage}`,
-    filePath: path.join(__dirname, '../../src/handlers/users/update-user.handler.ts'),
-    handlerName: UPDATE_USER_HANDLER,
-    description: 'Update a user',
-    requestParameters: {
-        'method.request.path.id': true,
-    },
-    model: updateUserModel,
-});
-```
-
-That keeps the skill focused on endpoint composition and DynamoDB-backed handler wiring while still making the table strategy explicit.
+See `references/rest-api-pattern.md` for route registration snippets.
 
 ## Response Style
 
