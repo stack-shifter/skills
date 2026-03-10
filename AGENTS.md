@@ -1,5 +1,20 @@
 # Repository Guidelines
 
+## Coding Philosophy
+
+Prefer code that is:
+
+- Agents must prioritize simple, readable, and maintainable code over clever or highly abstract solutions.
+- Prefer explicit control flow (if statements, for loops, early returns) and clear variable names rather than functional chaining or complex patterns.
+- Some duplication is acceptable if it improves readability and keeps logic easy to follow.
+- Avoid introducing abstractions, utilities, or libraries unless the same logic appears at least three times.
+- When multiple solutions exist, always choose the most boring, straightforward implementation that a mid-level to senior developer could understand quickly.
+- Include reasonable, concise comments to explain intent and non-obvious logic, but avoid excessive comments that clutter or restate obvious code.
+- Do not generalize code for hypothetical future use; implement only what is required for the current feature.
+- Prefer small functions with a single responsibility and avoid deeply nested logic.
+- Follow existing patterns in the repository instead of introducing new architectural styles.
+- Do not introduce complex design patterns (factories, builders, dependency injection layers, etc.) unless required.
+
 ## Project Structure & Module Organization
 
 This repository is a lightweight library of agent skills. Today, the root contains project documentation in `README.md` and `LICENSE`; contributed skills should be added as their own top-level directories, each with a `SKILL.md` entry point. Use a layout like `my-skill/SKILL.md`, and keep any supporting assets local to that skill directory so the skill stays portable.
