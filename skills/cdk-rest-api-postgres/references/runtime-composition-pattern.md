@@ -26,6 +26,9 @@ import { StorageService } from "./services/storage/storage.service";
 export const emailClient = new SESv2Client({ maxAttempts: 2 });
 export const s3Client = new S3Client({});
 
+// Entity mappers initialized once and reused across warm Lambda invocations
+export const projectMapper = new ProjectMapper();
+
 export const dbContext = new DatabaseContext(db);
 export const storageService = new StorageService(s3Client);
 export const emailService = new EmailService(emailClient);
@@ -48,6 +51,8 @@ export class DatabaseContext {
     }
 }
 ```
+
+**Mapper singletons** — when the service layer uses dedicated mapper classes to translate between database row shapes and domain models, initialize one mapper per entity type at module scope alongside the other singletons. Mappers are stateless, so a single instance is safe across all invocations and avoids allocation on every request.
 
 ## Guidance
 

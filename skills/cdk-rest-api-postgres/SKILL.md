@@ -68,6 +68,9 @@ Look for:
 - whether middleware or utilities already solve validation, authorization, cursor parsing, or error handling
 - whether the change needs environment variables from `getDefaultLambdaEnvironment`
 - whether handler files export a typed `HANDLER` registry constant to use for `handlerName` wiring
+- whether `src/data/db/schema/` modules already define the relevant table, and whether a schema index re-exports them
+- whether a migration workflow exists (`drizzle.config.ts`, a `drizzle/` folder) and what command generates migrations — confirm before proposing schema changes
+- whether `src/data/db/client.ts` already exports a shared `db` client and `Db` type
 
 After discovery, choose the appropriate approach and state it:
 
@@ -109,6 +112,7 @@ In this mode:
 8. Preserve Cognito authorizer behavior and group-based authorization middleware when extending protected routes.
 9. Prefer service classes and mapper classes for cross-cutting logic that appears in more than one controller.
 10. Centralize reusable error and cursor helpers under `src/utilities/` or an equivalent shared module rather than duplicating them in repositories or handlers.
+11. Prefer small reusable services for cross-cutting concerns such as logging, storage, notifications, and DTO mapping. When the same concern appears in more than one controller, extract it into a shared service rather than duplicating it inline.
 
 ## Default Assumptions
 
@@ -234,7 +238,50 @@ Prefer:
 
 See `references/rest-api-pattern.md` for the full registry template, multi-route stack examples, and the `setDefaultRouteOptions` setup.
 
-### 4. Use `ScheduleLambda` for EventBridge-triggered background jobs
+### 4. Prefer `Importer` for existing infrastructure
+
+If the repository exposes an importer helper like `lib/constructs/api-importer.ts`, use it when wiring a stack to resources that already exist.
+
+Prefer patterns like:
+
+```ts
+import { Importer } from './constructs/api-importer';
+
+const userPool = Importer.getCognitoUserPoolById(this, process.env.COGNITO_USER_POOL_ID!);
+const s3Bucket = Importer.getS3Bucket(this, process.env.S3_BUCKET!);
+const apiDomain = Importer.getApiGatewayDomainName(
+    this,
+    process.env.API_DOMAIN_NAME!,
+    process.env.API_DOMAIN_NAME_ALIAS!,
+    process.env.ZONE_ID!,
+);
+```
+
+Use the importer when the stack attaches to an existing user pool, S3 bucket, domain, or other shared resource, and the repository already centralizes `from*` imports behind an importer helper. Do not replace a repository-wide importer with direct `fromUserPoolId` or similar calls unless the user explicitly asks for it.
+
+See `references/importer-pattern.md` for the portable shape.
+
+### 5. Prefer `RestResult` for API responses
+
+If the repository has a response helper like `src/utilities/rest-result.ts`, use it as the default response format for controllers.
+
+Prefer methods such as:
+
+- `RestResult.Ok(...)`
+- `RestResult.Created(..., location)`
+- `RestResult.NoContent()`
+- `RestResult.BadRequest(...)`
+- `RestResult.Unauthorized(...)`
+- `RestResult.Forbidden(...)`
+- `RestResult.NotFound(...)`
+- `RestResult.Conflict(...)`
+- `RestResult.InternalServerError(...)`
+
+Use `RestResult.fromDatabaseError(error)` before falling through to a generic 500 whenever a repository operation could fail with a recognized Postgres constraint error. This keeps CORS headers, content types, status codes, and error body shapes consistent across all endpoints.
+
+If no local response helper exists, load `references/response-pattern.md` for the full class shape and baseline implementation.
+
+### 6. Use `ScheduleLambda` for EventBridge-triggered background jobs
 
 If the repository exposes a scheduled Lambda construct (e.g., `lib/constructs/schedule.ts`), use it for any non-API background work such as soft-delete cleanup, digest emails, or data expiry sweeps. Do not create a raw `events.Rule` + `NodejsFunction` pair inline.
 
@@ -376,6 +423,19 @@ When generating the architecture from scratch, prefer this order:
 4. add handler middleware and validation
 5. register the route and shared environment wiring
 6. add tests around the repository, controller, or handler boundary that changed
+
+## Response Style
+
+When using this skill, produce:
+
+1. A short statement of the endpoint(s) being added or changed
+2. A note saying whether you are using `Existing pattern mode` or `Pattern generation mode`
+3. CDK snippets based on local constructs when present, or the portable baseline when not
+4. The data layer change: new Drizzle schema and migration needed, or existing schema extended
+5. Any handler, controller, repository, or validation follow-on work needed to make the endpoint functional
+6. Explicit assumptions where auth, schema, or validation is ambiguous
+
+Avoid generic AWS guidance when a repository-specific construct snippet would answer the request better. Treat the repository's code as authoritative and the skill as workflow guidance, not as a competing source of truth.
 
 ## Definition of Done
 
