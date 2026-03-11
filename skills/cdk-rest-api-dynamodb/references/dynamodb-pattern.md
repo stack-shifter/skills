@@ -86,105 +86,56 @@ export const KeyPrefix = {
 
 Build PK/SK values inline in each repository using these constants for readability; do not create a shared key-builder factory.
 
-## Soft-Delete Pattern
+## Hard-Delete Pattern
 
-If the repository uses soft-delete with a scheduled hard-delete cleanup job, follow this pattern for any new entity that can be deleted via the API.
+Use a single `TransactWriteCommand` to atomically hard-delete all item rows — the primary record, lookup pointer, directory entry, and uniqueness locks. There is no soft-delete marker and no cleanup job.
 
-**Three-step `remove` method:**
+**`remove` method structure:**
 
-1. **Soft-delete the primary row** — `UpdateCommand` sets `isDeleted: true`, `deletedAt`, and `updatedAt`.
-2. **Immediately hard-delete all secondary rows** — lookup pointers, directory entries, and uniqueness locks are deleted right away (not by the cleanup job).
-3. **Write a cleanup marker** — `PutCommand` stores a `buildCleanupItem()` record that the scheduled job will process after the retention window, hard-deleting the primary row and the marker itself.
-
-Wire the cleanup Lambda using the `ScheduleLambda` construct — see `schedule-pattern.md`.
+1. Fetch the lookup pointer (or primary record) to retrieve current key values — the primary SK can embed a mutable name and must be read at delete time, not guessed.
+2. Build all `Delete` operations for the transaction.
+3. Send one `TransactWriteCommand`. Missing items do not cause failures when no condition expression is supplied on a `Delete`.
 
 ```ts
-import {
-    buildCleanupItem,
-    buildRetentionDueAt,
-    SoftDeleteEntityType,
-} from '../db/utils/soft-delete';
-import { DeleteCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 
 async remove(id: string): Promise<void> {
-    const existing = await this.findById(id);
-    if (!existing) {
+    // Fetch the lookup pointer to get the current primary SK (which may embed a name).
+    const lookupResult = await this.db.send(
+        new GetCommand({
+            TableName: this.tableName,
+            Key: { PK: `ENTITY#${id}`, SK: `ENTITY#${id}` },
+        }),
+    );
+    if (!lookupResult.Item) {
         return; // already deleted — idempotent
     }
 
-    const deletedAt = new Date().toISOString();
-    const retentionHours = Number(process.env.SOFT_DELETE_RETENTION_HOURS ?? '168');
+    const { entitySk, organizationId, nameLower } = lookupResult.Item;
 
-    // Step 1: soft-delete the primary row.
+    // Delete all item rows atomically.
     await this.db.send(
-        new UpdateCommand({
-            TableName: this.tableName,
-            Key: {
-                PK: entityPk(existing.organizationId),
-                SK: entitySk(id),
-            },
-            UpdateExpression: 'SET isDeleted = :isDeleted, deletedAt = :deletedAt, updatedAt = :updatedAt',
-            ExpressionAttributeValues: {
-                ':isDeleted': true,
-                ':deletedAt': deletedAt,
-                ':updatedAt': deletedAt,
-            },
-        }),
-    );
-
-    // Step 2: immediately hard-delete secondary rows (lookup, directory, uniqueness lock, etc.).
-    await this.db.send(
-        new DeleteCommand({
-            TableName: this.tableName,
-            Key: { PK: lookupPk(id), SK: lookupPk(id) },
-        }),
-    );
-    // ... delete other auxiliary rows as needed
-
-    // Step 3: write cleanup marker — cleanup job hard-deletes the primary row + this marker.
-    await this.db.send(
-        new PutCommand({
-            TableName: this.tableName,
-            Item: buildCleanupItem({
-                entityType: 'CLIENT' satisfies SoftDeleteEntityType,
-                targetPk: entityPk(existing.organizationId),
-                targetSk: entitySk(id),
-                scheduledAt: buildRetentionDueAt(deletedAt, retentionHours),
-                reason: 'SOFT_DELETE',
-            }),
+        new TransactWriteCommand({
+            TransactItems: [
+                { Delete: { TableName: this.tableName, Key: { PK: `ORG#${organizationId}`, SK: entitySk } } },
+                { Delete: { TableName: this.tableName, Key: { PK: `ENTITY#${id}`, SK: `ENTITY#${id}` } } },
+                { Delete: { TableName: this.tableName, Key: { PK: `UNIQ#ENTITY#NAME#${nameLower}`, SK: `UNIQ#ENTITY#NAME#${nameLower}` } } },
+            ],
         }),
     );
 }
 ```
 
-**Cascade roots** — for entities that must propagate deletion to children, call each child repository's `remove()` for all active descendants before soft-deleting the root. The `SOFT_DELETE_CASCADE_MATRIX` in `src/data/db/utils/soft-delete.ts` declares the traversal:
+**Cascade deletes** — for entities that own child records (e.g., a Project owns Updates, Share-links, and edge records), query each child collection and call the child repository's `remove()` before deleting the parent. Keep cascade orchestration in a service layer, not the repository.
+
+**DynamoDB TTL for auto-expiring items** — for records with a known expiry date (such as share links), write a `ttl` field as a Unix epoch in seconds alongside the ISO string. DynamoDB auto-deletes expired rows without a cleanup job. Apply `ttl` to every item row (primary, lookup, token) in the same create transaction so all rows expire together:
 
 ```ts
-// ORG    → ["PROJECT", "CLIENT"]
-// PROJECT → ["UPDATE", "SHARE_LINK", "PROJECT_CLIENT_EDGE"]
-import { SOFT_DELETE_CASCADE_MATRIX } from '../db/utils/soft-delete';
-
-async remove(id: string): Promise<void> {
-    const activeChildIds = await this.childRepository.findActiveIdsByParent(id);
-    for (const childId of activeChildIds) {
-        await this.childRepository.remove(childId);
-    }
-    // Then soft-delete this entity (UpdateCommand → cleanup marker PutCommand).
-}
+ttl: Math.floor(expiresAt.getTime() / 1000), // DynamoDB TTL — auto-expires the row
+expiresAt: expiresAt.toISOString(),           // ISO string for application logic
 ```
 
-**Filtering deleted items** — all read methods must exclude soft-deleted rows:
-
-```ts
-// Option A: inline filter after query (preferred when rows are fetched into memory)
-rows.filter((item) => !item.isDeleted)
-
-// Option B: DynamoDB FilterExpression
-FilterExpression: 'attribute_not_exists(isDeleted) OR isDeleted = :isDeleted',
-ExpressionAttributeValues: { ':isDeleted': false }
-```
-
-**Share-link variant** — for entities with an expiry date, a second cleanup reason `"EXPIRES"` is also supported. Pass `reason: 'EXPIRES'` and set `scheduledAt` to the expiry timestamp rather than the retention due-at timestamp.
+Enable TTL on the table by setting `timeToLiveAttribute: 'ttl'` in the CDK table definition.
 
 ## Transactional Writes
 
@@ -210,8 +161,6 @@ async create(input: IEntity): Promise<IEntity> {
         nameLower,
         createdAt: now,
         updatedAt: now,
-        isDeleted: false,
-        deletedAt: null,
     };
 
     // Directory entry — enables sorted list queries via GSI or SK range scan

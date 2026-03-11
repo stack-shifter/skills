@@ -55,7 +55,6 @@ Search for:
 - scheduled job constructs for EventBridge-triggered Lambdas (e.g., `lib/constructs/schedule.ts`)
 - `HANDLER` registry constants exported from each handler file (used as the authoritative source for `handlerName` values in route registration)
 - single-table key convention files such as `src/data/db/utils/conventions.ts` (`EntityType`, `KeyPrefix`)
-- soft-delete cleanup helpers such as `src/data/db/utils/soft-delete.ts` (`buildCleanupItem`, `buildRetentionDueAt`)
 - an existing `docs/schema-reference.md` (or equivalent) to understand the current table schema before adding entities or access patterns
 
 Likely locations:
@@ -473,7 +472,7 @@ When using single-table design, bias toward patterns like:
 - If the repository defines `EntityType` and `KeyPrefix` constants (e.g., `src/data/db/utils/conventions.ts`), add new entity types there rather than inventing ad-hoc string literals inside a repository. See `references/dynamodb-pattern.md` for the conventions shape.
 - Build PK/SK values inline inside each repository for readability; do not create a shared key-builder factory
 
-**Soft-delete pattern for deletable entities** — if the repository uses soft-delete with a scheduled hard-delete cleanup job, apply it to any new deletable entity. See `references/dynamodb-pattern.md` for the full three-step `remove` implementation, cascade matrix, and share-link variant.
+**Hard-delete pattern for deletable entities** — use a single `TransactWriteCommand` to atomically delete the primary record plus all auxiliary rows (lookup pointers, directory entries, uniqueness locks). There is no soft-delete marker or cleanup job. For items with a known expiry (e.g., share links), write a `ttl` field as a Unix epoch in seconds so DynamoDB auto-expires the rows. See `references/dynamodb-pattern.md` for the full hard-delete implementation, cascade guidance, and TTL pattern.
 
 When using multi-table design, keep these rules:
 

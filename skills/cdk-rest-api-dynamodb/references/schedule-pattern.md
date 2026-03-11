@@ -17,25 +17,22 @@ Wire scheduled background work (cleanup jobs, digest emails, data expiry) throug
 
 ```ts
 import { ScheduleLambda } from './constructs/schedule';
-import { CLEANUP_HANDLER } from '../src/handlers/cleanup.handler';
+import { DIGEST_HANDLER } from '../src/handlers/digest.handler';
 import { getDefaultLambdaEnvironment, getStackLambdaName } from './constructs/node-lambda';
 
 const lambdaName = (name: string) => getStackLambdaName(name, props.deploymentStage);
 const handlerPath = (rel: string) => path.join(__dirname, '..', rel);
 
-new ScheduleLambda(this, 'ScheduledCleanup', {
-    lambdaName: lambdaName('Cleanup'),
-    filePath: handlerPath('src/handlers/cleanup.handler.ts'),
-    handlerName: CLEANUP_HANDLER.RUN,
-    description: 'Hard-delete due soft-deleted records.',
-    hours: 12,
+new ScheduleLambda(this, 'ScheduledDigest', {
+    lambdaName: lambdaName('Digest'),
+    filePath: handlerPath('src/handlers/digest.handler.ts'),
+    handlerName: DIGEST_HANDLER.RUN,
+    description: 'Send periodic digest notifications.',
+    hours: 24,
     environmentVariables: {
         DYNAMODB_TABLE: dynamoDbTableName,
-        CLEANUP_BATCH_SIZE: '100',
-        CLEANUP_MAX_ITEMS: '1000',
-        SOFT_DELETE_RETENTION_HOURS: '168',
     },
-    tableGrants: [{ table: dynamoDbTable, access: 'readWrite' }],
+    tableGrants: [{ table: dynamoDbTable, access: 'read' }],
 });
 ```
 
@@ -44,12 +41,12 @@ new ScheduleLambda(this, 'ScheduledCleanup', {
 ```ts
 import { ScheduledEvent } from 'aws-lambda';
 
-export const CLEANUP_HANDLER = {
-    RUN: 'cleanupHandler',
+export const DIGEST_HANDLER = {
+    RUN: 'digestHandler',
 } as const;
 
-export const cleanupHandler = async (_event: ScheduledEvent): Promise<void> => {
-    // build runtime dependencies and execute one cleanup cycle
+export const digestHandler = async (_event: ScheduledEvent): Promise<void> => {
+    // build runtime dependencies and execute one scheduled cycle
 };
 ```
 
