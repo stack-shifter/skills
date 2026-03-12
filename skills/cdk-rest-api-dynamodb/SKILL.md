@@ -54,7 +54,9 @@ Search for:
 - Stack files that already compose routes, auth, models, or permissions
 - scheduled job constructs for EventBridge-triggered Lambdas (e.g., `lib/constructs/schedule.ts`)
 - `HANDLER` registry constants exported from each handler file (used as the authoritative source for `handlerName` values in route registration)
-- single-table key convention files such as `src/data/db/utils/conventions.ts` (`EntityType`, `KeyPrefix`)
+- `src/middlewares/inject-lambda-context.middleware.ts` — adapter that bridges `@aws-lambda-powertools/logger/middleware` with Middy v7; used inside `withCommonMiddleware` in every handler file
+- single-table key convention files such as `src/data/db/utils/conventions.ts` (`EntityType`, `KeyPrefix`, `normalize`)
+- a centralized key-builder file such as `src/data/db/keys.ts` (a `Keys` object of typed PK/SK builder functions covering every entity and access pattern)
 - an existing `docs/schema-reference.md` (or equivalent) to understand the current table schema before adding entities or access patterns
 
 Likely locations:
@@ -83,7 +85,7 @@ Use this mode when the repo already has abstractions similar to the current repo
 - `lib/constructs/api-models.ts` for the route and API prop shapes
 - `src/app.ts` or `src/dependencies/` for singleton runtime wiring
 - `src/data/context.ts` for repository aggregation
-- `src/middlewares/` for authorization, validation, and error middleware
+- `src/middlewares/` for authorization, validation, error middleware, and Powertools logger injection (`inject-lambda-context.middleware.ts`)
 - `src/services/logger.service.ts` for shared logging
 - `src/services/storage/storage.service.ts` for presigned upload or download URLs
 - `src/services/messaging/` for SES or notification integrations
@@ -469,8 +471,8 @@ When using single-table design, bias toward patterns like:
 - Pass tables through `grantTableAccess`
 - Pass table names through `environmentVariables`
 - Keep Lambda handlers thin and push key construction/query logic into repositories or services
-- If the repository defines `EntityType` and `KeyPrefix` constants (e.g., `src/data/db/utils/conventions.ts`), add new entity types there rather than inventing ad-hoc string literals inside a repository. See `references/dynamodb-pattern.md` for the conventions shape.
-- Build PK/SK values inline inside each repository for readability; do not create a shared key-builder factory
+- If the repository defines `EntityType` and `KeyPrefix` constants (e.g., `src/data/db/utils/conventions.ts`), add new entity types and prefixes there rather than inventing ad-hoc string literals inside a repository.
+- If the repository has a centralized key-builder file (e.g., `src/data/db/keys.ts`), add new key-builder functions there and use them in repositories rather than constructing key strings inline. See `references/dynamodb-pattern.md` for the key-builder pattern.
 
 **Hard-delete pattern for deletable entities** — use a single `TransactWriteCommand` to atomically delete the primary record plus all auxiliary rows (lookup pointers, directory entries, uniqueness locks). There is no soft-delete marker or cleanup job. For items with a known expiry (e.g., share links), write a `ttl` field as a Unix epoch in seconds so DynamoDB auto-expires the rows. See `references/dynamodb-pattern.md` for the full hard-delete implementation, cascade guidance, and TTL pattern.
 

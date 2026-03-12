@@ -67,24 +67,67 @@ const usersTable = new dynamodb.TableV2(this, 'UsersTable', {
 - For single-table designs, encode entity type and relationship intent into key prefixes.
 - For multi-table designs, keep each table schema simple and avoid inventing single-table style prefixes without a real need.
 
-## Entity Type Conventions
+## Entity Type and Key Conventions
 
-If the repository defines `EntityType` and `KeyPrefix` constants (e.g., in `src/data/db/utils/conventions.ts`), add new entity types and prefixes there rather than inventing ad-hoc string literals inside a repository:
+If the repository defines `EntityType`, `KeyPrefix`, and `normalize` constants (e.g., in `src/data/db/utils/conventions.ts`), add new entity types and prefixes there rather than inventing ad-hoc string literals:
 
 ```ts
 export const EntityType = {
-    USER: 'USER',
-    ORDER: 'ORDER',
+    Organization: 'ORG',
+    Client: 'CLIENT',
     // add new entity types here
 } as const;
 
 export const KeyPrefix = {
-    USER: 'USER#',
-    ORDER: 'ORDER#',
+    Organization: 'ORG',
+    Client: 'CLIENT',
+    Unique: 'UNIQ',
+} as const;
+
+/** Trim and lowercase a string for case-insensitive comparisons and unique-lock keys. */
+export const normalize = (value: string): string => value.trim().toLowerCase();
+```
+
+## Key Builder
+
+If the repository has a centralized key-builder file (e.g., `src/data/db/keys.ts`), add new PK/SK builder functions there and call them from repositories. Do not construct key strings inline in repositories when a shared builder exists.
+
+The `Keys` object is a single `as const` export of typed functions — one per key variant across every entity and access pattern:
+
+```ts
+export const Keys = {
+    // Primary record
+    entityPk: (entityId: string): string => `ENTITY#${entityId}`,
+    entitySk: (entityId: string): string => `ENTITY#${entityId}`,
+
+    // Lookup pointer — resolves id → current primary SK without a full scan
+    lookupEntityPk: (entityId: string): string => `LOOKUP#ENTITY#${entityId}`,
+    lookupEntitySk: (entityId: string): string => `LOOKUP#ENTITY#${entityId}`,
+
+    // Directory partition — sorted list queries using SK begins_with / between
+    directoryEntityPk: 'DIRECTORY#ENTITY',
+    directoryEntitySk: (nameLower: string, entityId: string): string =>
+        `NAME#${nameLower}#ENTITY#${entityId}`,
+
+    // Uniqueness lock — prevents duplicates; condition-checked on create
+    uniqEntityNamePk: (nameLower: string): string => `UNIQ#ENTITY#NAME#${nameLower}`,
+    uniqEntityNameSk: (nameLower: string): string => `UNIQ#ENTITY#NAME#${nameLower}`,
+
+    // GSI key for alternate access pattern
+    entityTimelineGsiPk: (parentId: string): string => `TIMELINE#ENTITY#${parentId}`,
+    entityTimelineGsiSk: (createdAt: string, entityId: string): string =>
+        `CREATED#${createdAt}#ENTITY#${entityId}`,
 } as const;
 ```
 
-Build PK/SK values inline in each repository using these constants for readability; do not create a shared key-builder factory.
+Call sites in repositories become self-documenting:
+
+```ts
+Key: { PK: Keys.lookupEntityPk(id), SK: Keys.lookupEntitySk(id) }
+GSI1PK: Keys.entityTimelineGsiPk(parentId)
+```
+
+Callers pass already-normalized values (via `normalize()`) when a key includes a lowercased field; normalization belongs at the call site, not inside the key builder.
 
 ## Hard-Delete Pattern
 

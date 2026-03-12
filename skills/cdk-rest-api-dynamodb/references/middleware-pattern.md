@@ -8,23 +8,60 @@ Centralize request normalization, authorization, validation, and middleware erro
 
 ## Recommended Middleware Set
 
-- header and event normalization
-- JSON body parsing for write routes
-- authorization middleware for Cognito groups or JWT claims
-- Zod-backed validation middleware for body, query, path, and headers
-- shared HTTP error middleware that converts parser failures into standardized responses
+- `httpHeaderNormalizer()` — normalizes header casing before any middleware reads them
+- `httpEventNormalizer()` — normalizes the API Gateway event shape for consistent access
+- `injectLambdaContext()` — adapter that bridges `@aws-lambda-powertools/logger/middleware` with Middy v7's handler type; inject after normalizers so the Powertools logger receives the enriched event
+- `handleHttpError()` — converts Middy parser errors (415, 422) into standardized `RestResult` responses
+- `httpJsonBodyParser({ disableContentTypeError: true })` — parses the JSON body for write routes; `disableContentTypeError` defers content-type enforcement to the Zod header schema
+- `authorizedGroup(...)` — Cognito group-based authorization middleware
+- `validateHeaders(...)`, `validatePathParameters(...)`, `validateQueryParameters(...)`, `validateBody(...)` — Zod-backed validation middleware
 
-## Baseline Handler Chain
+## Handler Composition Pattern
+
+Use `withCommonMiddleware` and `withWriteMiddleware` factory helpers inside each handler file rather than repeating the base chain inline. This is the established pattern across all handler files.
 
 ```ts
-export const createUserHandler = middy(createUserController)
-    .use(httpHeaderNormalizer())
-    .use(httpEventNormalizer())
-    .use(handleHttpError())
-    .use(httpJsonBodyParser({ disableContentTypeError: true }))
-    .use(authorizedGroup({ allowed: [adminGroup] }))
+import middy from '@middy/core';
+import httpEventNormalizer from '@middy/http-event-normalizer';
+import httpHeaderNormalizer from '@middy/http-header-normalizer';
+import httpJsonBodyParser from '@middy/http-json-body-parser';
+import { injectLambdaContext } from '../middlewares/inject-lambda-context.middleware';
+import { handleHttpError } from '../middlewares/http-error.middleware';
+import { logger } from '../services/logger';
+
+/**
+ * Base Middy pipeline shared by every route in this handler file.
+ * Normalizes headers and event shape, injects Powertools logger context,
+ * and maps parser errors to standard responses.
+ */
+const withCommonMiddleware = <T extends typeof getByIdController>(handler: T) =>
+    middy(handler)
+        .use(httpHeaderNormalizer())
+        .use(httpEventNormalizer())
+        .use(injectLambdaContext(logger, { logEvent: false }))
+        .use(handleHttpError());
+
+/**
+ * Extended pipeline for write routes (POST, PUT).
+ * Adds JSON body parsing on top of the common middleware.
+ * `disableContentTypeError` defers content-type enforcement to the Zod header schema.
+ */
+const withWriteMiddleware = <T extends typeof saveController>(handler: T) =>
+    withCommonMiddleware(handler).use(httpJsonBodyParser({ disableContentTypeError: true }));
+```
+
+Append route-specific middleware (auth, validation) to the returned instance:
+
+```ts
+export const getByIdEntityHandler = withCommonMiddleware(getByIdEntityController)
+    .use(authorizedGroup({ allowed: [allowedGroup] }))
+    .use(validatePathParameters(entityPathSchema));
+
+export const saveEntityHandler = withWriteMiddleware(saveEntityController)
+    .use(authorizedGroup({ allowed: [allowedGroup] }))
     .use(validateHeaders(jsonContentTypeSchema))
-    .use(validateBody(createUserSchema));
+    .use(validatePathParameters(organizationPathSchema))
+    .use(validateBody(entityPostDtoSchema));
 ```
 
 ## Guidance

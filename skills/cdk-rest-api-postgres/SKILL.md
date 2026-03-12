@@ -18,7 +18,7 @@ Portable references live in `references/`. Load only the patterns needed for the
 - `references/sql-drizzle-pattern.md` for Drizzle schema, repository, and `DatabaseContext` guidance
 - `references/auth-pattern.md` for Cognito authorizer, scopes, and handler-level group authorization
 - `references/runtime-composition-pattern.md` for `src/app.ts` singleton wiring and dependency aggregation
-- `references/middleware-pattern.md` for reusable Middy middleware such as auth, validation, and HTTP error handling
+- `references/middleware-pattern.md` for reusable Middy middleware such as auth, validation, HTTP error handling, and Powertools logger injection
 - `references/services-pattern.md` for logger, storage, notification, and mapper service design
 - `references/utilities-pattern.md` for `RestResult`, error types, status codes, cursor helpers, and related utilities
 - `references/schedule-pattern.md` for EventBridge-triggered scheduled Lambda jobs
@@ -71,6 +71,7 @@ Look for:
 - whether `src/data/db/schema/` modules already define the relevant table, and whether a schema index re-exports them
 - whether a migration workflow exists (`drizzle.config.ts`, a `drizzle/` folder) and what command generates migrations — confirm before proposing schema changes
 - whether `src/data/db/client.ts` already exports a shared `db` client and `Db` type
+- whether `src/middlewares/inject-lambda-context.middleware.ts` exists — adapter that bridges `@aws-lambda-powertools/logger/middleware` with Middy v7; used inside `withCommonMiddleware` in every handler file
 
 After discovery, choose the appropriate approach and state it:
 
@@ -86,6 +87,7 @@ Use the repository's existing abstractions directly:
 - `Importer` when the stack needs to attach to existing AWS resources
 - `RestResult` for API Gateway response objects
 - `DatabaseContext` plus Drizzle repositories for persistence
+- `src/middlewares/inject-lambda-context.middleware.ts` for AWS Powertools logger injection in handler pipelines
 
 Avoid hand-rolling raw API Gateway, Lambda, or persistence wiring unless the existing abstractions clearly cannot support the requirement.
 
