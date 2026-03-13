@@ -14,7 +14,7 @@ import { CognitoJwtVerifier } from 'aws-jwt-verify';
 import { CognitoAccessTokenPayload } from 'aws-jwt-verify/jwt-model';
 import { NextFunction, Request, RequestHandler, Response } from 'express';
 import { z } from 'zod/v4';
-import { ErrorResponseBuilder, ErrorType } from '../models/error.model';
+import { ErrorResponseBuilder, ErrorType } from '../models/entities/error.model';
 import { StatusCode } from '../utilities/status-code';
 
 const jwtVerifier = CognitoJwtVerifier.create({
@@ -86,19 +86,8 @@ export const authorize = (allowedGroups?: string[]): RequestHandler =>
 import { NextFunction, Request, Response } from 'express';
 import { ZodTypeAny } from 'zod/v4';
 import { $ZodIssue } from 'zod/v4/core';
-import { ErrorResponseBuilder, ErrorType } from '../models/error.model';
+import { ErrorResponseBuilder, ErrorType } from '../models/entities/error.model';
 import { StatusCode } from '../utilities/status-code';
-
-type ValidatedRequestData = {
-  body?: unknown;
-  params?: unknown;
-  query?: unknown;
-};
-
-const withValidated = (response: Response): ValidatedRequestData => {
-  response.locals.validated ??= {};
-  return response.locals.validated as ValidatedRequestData;
-};
 
 export const validateBody = (schema: ZodTypeAny) =>
   (request: Request, response: Response, next: NextFunction): void => {
@@ -114,7 +103,6 @@ export const validateBody = (schema: ZodTypeAny) =>
       );
       return;
     }
-    withValidated(response).body = result.data;
     next();
   };
 
@@ -132,7 +120,6 @@ export const validateQuery = (schema: ZodTypeAny) =>
       );
       return;
     }
-    withValidated(response).query = result.data;
     next();
   };
 
@@ -150,7 +137,6 @@ export const validateParams = (schema: ZodTypeAny) =>
       );
       return;
     }
-    withValidated(response).params = result.data;
     next();
   };
 
@@ -168,7 +154,7 @@ const formatZodIssues = (issues: $ZodIssue[]): Record<string, string> => {
 ```ts
 // src/middlewares/global-error.middleware.ts
 import { ErrorRequestHandler, NextFunction, Request, Response } from 'express';
-import { ErrorResponseBuilder, ErrorType } from '../models/error.model';
+import { ErrorResponseBuilder, ErrorType } from '../models/entities/error.model';
 import { StatusCode } from '../utilities/status-code';
 
 export const globalErrorHandler: ErrorRequestHandler = (
@@ -202,6 +188,7 @@ export const globalErrorHandler: ErrorRequestHandler = (
 - If it does not, generate shared middleware units instead of embedding auth or validation directly in controllers.
 - `authorize` attaches the decoded payload to `request.user` for downstream access
 - Validation middleware returns early on failure — no `next()` on the error path
-- Store parsed Zod output on `response.locals.validated` instead of mutating `req.query`
+- If the repository already stores parsed Zod output on `response.locals.validated`, keep using that pattern
+- If the repository only validates and continues reading from `request.body`, `request.params`, and `request.query`, preserve that pattern instead of mixing both approaches
 - `globalErrorHandler` must declare all four parameters `(err, req, res, next)` or Express ignores it
 - In Express 5, unhandled async rejections in route handlers reach `globalErrorHandler` automatically

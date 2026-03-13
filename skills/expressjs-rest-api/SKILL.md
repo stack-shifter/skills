@@ -43,6 +43,9 @@ app.use(express.urlencoded({ extended: true }));
 
 **`req.query` should not be treated as the destination for coerced values** — store validated query output on `res.locals` instead of mutating `req.query`.
 
+When the target repository already validates only for rejection and continues reading from `req.body`, `req.params`, or
+`req.query`, preserve that pattern unless the user explicitly wants a validation-pipeline refactor.
+
 **`req.body` is `undefined` until a body parser runs** — do not assume JSON payloads exist before `express.json()`.
 
 ## Environment Variable Strategy
@@ -76,6 +79,9 @@ In production (e.g. ECS, Lambda, Fly.io), environment variables are injected dir
 
 Avoid reading `process.env` at module top level inside imported files before `loadEnvFile()` runs. If a dependency needs env values during initialization, move that env read into a function, a factory, or the app bootstrap path.
 
+When the target repository already relies on package scripts such as `node --env-file=.env.development ...`, preserve
+that approach instead of adding `process.loadEnvFile()` to the app bootstrap.
+
 ## Portability Rule
 
 This skill works across repositories. Do not assume a specific folder layout exists.
@@ -104,6 +110,7 @@ Inspect only the parts of the repository that matter for the request. Common pla
 - dependency wiring or composition modules
 - error class hierarchy and shared response/status utilities
 - Datastore indicators: DynamoDB SDK imports, Drizzle schema files, `DATABASE_URL` env var
+- style indicators: JSDoc conventions, inline step comments, response builder usage, and route path composition
 
 After discovery, choose one mode and state it:
 
@@ -127,6 +134,14 @@ Use this mode when the repo already has patterns such as:
 - dependency injection or composition root modules
 
 Preserve local patterns even when they reflect older Express 4-era conventions. Only generate new patterns when the repository does not already establish a coherent approach.
+
+Repository-specific examples of patterns worth preserving when present:
+
+- routes mounted under `/v1` with full resource paths declared inside each router
+- controller-local `try/catch` blocks that map known repository errors into `ErrorResponseBuilder` payloads
+- validation middleware that rejects invalid input without storing parsed values on `res.locals`
+- a shared database context or composition object that owns resource repositories
+- function JSDoc and concise step comments inside handlers, middleware, and repositories
 
 ## Pattern Generation Mode
 
@@ -181,15 +196,16 @@ When adding a new resource, a good flow is:
 
 - Node.js version baseline for new projects: 24
 - Express version: 5.x (`express ~5.1.0`)
-- Language: TypeScript with `commonjs` module output
+- Language: TypeScript; follow the repository's existing module system and compiler settings first
 - Validation: Zod v4 (`zod/v4`)
 - Auth: Cognito JWT validation via `aws-jwt-verify`
 - Datastore: ask the user — DynamoDB or Postgres are both supported
   - DynamoDB: `@aws-sdk/lib-dynamodb`, single-table design with `PK`/`SK` keys
-  - Postgres: Drizzle ORM (`drizzle-orm`) with `postgres` driver for new projects; follow the existing ORM if one is already in use
+  - Postgres: Drizzle ORM (`drizzle-orm`) with the repository's existing driver and wiring pattern first
 - Security headers: `helmet`
 - CORS: `cors` with `CORS_ORIGIN` env var, `*` fallback
 - Environment loading: Node.js `process.loadEnvFile()` in the app bootstrap after imports when the repository does not already use another approach
+- Module system: follow the repository first; ESM is common in modern Express 5 TypeScript projects
 
 If the user gives constraints that conflict with these defaults, adapt and state the change.
 
@@ -214,6 +230,7 @@ When the target repository does not already establish a conflicting pattern, pre
 6. Reuse a shared error and status-code pattern when one exists. If it does not, generate one shared pattern instead of repeating inline HTTP error payloads.
 7. Choose the datastore pattern deliberately: DynamoDB access patterns should drive key design; Postgres access patterns should drive schema and index design.
 8. Keep generated names, route prefixes, and response shapes aligned with the target repository's conventions.
+9. Match the repository's documentation style when adding code comments: preserve JSDoc and brief step comments when those are established locally.
 
 ## Environment File Templates
 

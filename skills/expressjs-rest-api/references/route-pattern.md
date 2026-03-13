@@ -26,26 +26,32 @@ import {
   getItemsHandler,
   updateItemHandler,
 } from '../controllers/item.controller';
+import { getAllowedGroups } from '../utilities/allowed-groups';
 
-const router: Router = Router({ mergeParams: true });
+const allowedGroups = getAllowedGroups();
+const router: Router = Router();
 
-// Apply auth to all routes in this router
-router.use(authorize());
-
-router.get('/', validateQuery(itemQuerySchema), getItemsHandler);
-router.get('/:id', validateParams(itemIdSchema), getItemByIdHandler);
-router.post('/', validateBody(itemPostDtoSchema), createItemHandler);
-router.put('/:id', validateParams(itemIdSchema), validateBody(itemPutDtoSchema), updateItemHandler);
-router.delete('/:id', validateParams(itemIdSchema), deleteItemHandler);
+router.get('/items', authorize(allowedGroups), validateQuery(itemQuerySchema), getItemsHandler);
+router.get('/items/:itemId', authorize(allowedGroups), validateParams(itemIdSchema), getItemByIdHandler);
+router.post('/items', authorize(allowedGroups), validateBody(itemPostDtoSchema), createItemHandler);
+router.put(
+  '/items/:itemId',
+  authorize(allowedGroups),
+  validateParams(itemIdSchema),
+  validateBody(itemPutDtoSchema),
+  updateItemHandler,
+);
+router.delete('/items/:itemId', authorize(allowedGroups), validateParams(itemIdSchema), deleteItemHandler);
 
 export default router;
 ```
 
 ## Guidance
 
-- `Router({ mergeParams: true })` preserves `req.params` from parent routers in nested route trees
+- `Router({ mergeParams: true })` preserves `req.params` from parent routers in nested route trees when nested routing is already part of the repository
 - If the repository already has router modules, extend them. If it does not, generate router modules rather than registering every resource directly in the app bootstrap.
-- `router.use(authorize())` applies auth to all routes; pass `authorize(['admin'])` to restrict by Cognito group
+- If the repository already uses explicit `authorize(getAllowedGroups())` calls on each route, preserve that style
 - Chain validation middleware directly on the route before the handler: `validateParams` then `validateBody`
-- For public routes (e.g. health check), register them on the app bootstrap or a public router without `authorize()`
+- For public routes (e.g. health check or token-based share-link routes), register them on the app bootstrap or a public router without `authorize()`
+- If the app mounts routers under `/v1`, keep route modules aligned with that prefixing strategy
 - Mount the router from one centralized bootstrap or route-composition layer

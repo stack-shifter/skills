@@ -4,7 +4,8 @@ Use this reference when you need a reusable Express app bootstrap pattern.
 
 ## Goal
 
-Create one app bootstrap module that loads environment variables, wires middleware, mounts routes, and starts the server.
+Create one app bootstrap module that wires middleware, mounts routes, and starts the server, while matching the
+repository's environment-loading approach.
 
 ## Baseline Example
 
@@ -17,8 +18,8 @@ import itemRoutes from './routes/item.route';
 import { globalErrorHandler } from './middlewares/global-error.middleware';
 import { healthCheck } from './controllers/health.controller';
 
-// Load env file after imports and before app setup.
-// In production, env vars are injected directly — skip file loading.
+// Load env file after imports and before app setup when the repository
+// uses bootstrap-based environment loading.
 if (process.env.NODE_ENV !== 'production') {
   process.loadEnvFile(`.env.${process.env.NODE_ENV || 'development'}`);
 }
@@ -34,7 +35,7 @@ app.use(helmet());
 const PORT = process.env.PORT || 3000;
 
 app.use('/v1/items', itemRoutes);
-app.get('/v1/health', healthCheck);
+app.get('/heartbeat', healthCheck);
 
 // Global error handler must be the last middleware registered
 app.use(globalErrorHandler);
@@ -95,10 +96,12 @@ If the repository already uses `nodemon`, `ts-node-dev`, or another runner, keep
 - If the repository already has an app bootstrap, extend it instead of creating another one.
 - If it does not, generate one bootstrap module instead of spreading setup across multiple files.
 - `process.loadEnvFile()` is built into modern Node releases — no `dotenv` package needed
-- Load the env file immediately after imports in the bootstrap module, and avoid module-level `process.env` reads in imported files before bootstrap runs
+- If the repository already loads env files through package scripts such as `node --env-file=.env.development ...`, keep that approach and do not duplicate env loading in `app.ts`
+- If bootstrap-based env loading is used, load the env file immediately after imports in the bootstrap module, and avoid module-level `process.env` reads in imported files before bootstrap runs
 - Set `trust proxy` so `req.ip` and `req.ips` reflect the real client IP behind a load balancer
 - Register `globalErrorHandler` last — Express 5 auto-forwards async rejections to it
 - Use one consistent API prefix such as `/v1/` when the repository does not already use another prefixing scheme
+- If the repository already exposes a public health endpoint such as `/heartbeat`, preserve it
 - In Express 5, `express.json()` and `express.urlencoded()` are built-in; no `body-parser` needed
 - For new apps, add graceful shutdown for HTTP server, database pool, and AWS clients if the repo does not already provide it
 - Follow the repo's existing development runner first; for new TypeScript apps prefer `tsx watch` over `nodemon`

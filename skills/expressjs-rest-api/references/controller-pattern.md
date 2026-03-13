@@ -6,62 +6,160 @@ Use this reference when you need a reusable controller or route-handler pattern.
 
 Create `RequestHandler` async functions or equivalent handlers that read request data, call services or repositories, and return consistent HTTP responses.
 
+When the repository already uses explicit `try/catch` blocks with `ErrorResponseBuilder`, preserve that pattern instead of forcing all named errors through the global error middleware.
+
 ## Baseline Example
 
 ```ts
 // src/controllers/item.controller.ts
-import { Request, RequestHandler, Response } from 'express';
-import { StatusCode } from '../utilities/status-code';
-import { itemRepository } from '../dependencies/aws.deps';
-import { ItemPostDto } from '../models/item.model';
-import { NotFoundError } from '../utilities/errors';
+import { NextFunction, Request, RequestHandler, Response } from "express";
+import { StatusCode } from "../utilities/status-code";
+import { dbContext } from "../dependencies/app.dependencies";
+import { ItemPostDto, ItemPutDto } from "../models/validation/item.validation";
+import { NotFoundError } from "../data/repositories/errors/not-found.error";
+import {
+  ErrorResponseBuilder,
+  ErrorType,
+} from "../models/entities/error.model";
 
 export const getItemByIdHandler: RequestHandler = async (
   request: Request,
-  response: Response
+  response: Response,
+  next: NextFunction,
 ): Promise<void> => {
-  const id = response.locals.validated?.params.id ?? request.params['id'];
-  const item = await itemRepository.findById(id);
+  // Read the item identifier from the route parameters.
+  const id = request.params["itemId"] as string;
 
-  if (!item) {
-    throw new NotFoundError('Item not found');
+  try {
+    // Load the item before building the response payload.
+    const item = await dbContext.items.findById(id);
+
+    // Return the not-found response when the item does not exist.
+    if (!item) {
+      response
+        .status(StatusCode.NOT_FOUND)
+        .json(
+          new ErrorResponseBuilder()
+            .setType(ErrorType.NOT_FOUND_ERROR)
+            .setStatus(StatusCode.NOT_FOUND)
+            .setMessage("Item not found")
+            .build(),
+        );
+      return;
+    }
+
+    // Return the response payload when the item exists.
+    response.status(StatusCode.OK).json(item);
+  } catch (error: unknown) {
+    // Translate known repository errors into the existing HTTP response shape.
+    if (error instanceof NotFoundError) {
+      response
+        .status(StatusCode.NOT_FOUND)
+        .json(
+          new ErrorResponseBuilder()
+            .setType(ErrorType.NOT_FOUND_ERROR)
+            .setStatus(StatusCode.NOT_FOUND)
+            .setMessage(error.message)
+            .build(),
+        );
+      return;
+    }
+
+    // Delegate unexpected errors to the global error handler.
+    next(error);
   }
-
-  response.status(StatusCode.OK).json(item);
 };
 
 export const createItemHandler: RequestHandler = async (
   request: Request,
-  response: Response
+  response: Response,
+  next: NextFunction,
 ): Promise<void> => {
-  const dto = (response.locals.validated?.body ?? request.body) as ItemPostDto;
-  const item = await itemRepository.create(dto);
+  // Read the request body used to create the item.
+  const dto = request.body as ItemPostDto;
 
-  response
-    .setHeader('Location', `/v1/items/${item.id}`)
-    .status(StatusCode.CREATED)
-    .json(item);
+  try {
+    // Create the item from the request payload.
+    const item = await dbContext.items.create(dto);
+
+    // Return the created resource and location header.
+    response
+      .location(`/v1/items/${item.id}`)
+      .status(StatusCode.CREATED)
+      .json(item);
+  } catch (error: unknown) {
+    // Delegate unexpected errors to the global error handler.
+    next(error);
+  }
 };
 
 export const updateItemHandler: RequestHandler = async (
   request: Request,
-  response: Response
+  response: Response,
+  next: NextFunction,
 ): Promise<void> => {
-  const id = response.locals.validated?.params.id ?? request.params['id'];
-  const dto = response.locals.validated?.body ?? request.body;
+  // Read the route id and request body used for the update.
+  const id = request.params["itemId"] as string;
+  const dto = request.body as ItemPutDto;
 
-  await itemRepository.update(id, dto);
-  response.status(StatusCode.NO_CONTENT).end();
+  // Reject updates when the path id and body id do not match.
+  if (id !== dto.id) {
+    response
+      .status(StatusCode.BAD_REQUEST)
+      .json(
+        new ErrorResponseBuilder()
+          .setType(ErrorType.VALIDATION_ERROR)
+          .setStatus(StatusCode.BAD_REQUEST)
+          .setMessage("Id does not match. Unable to update item.")
+          .build(),
+      );
+    return;
+  }
+
+  try {
+    // Persist the updated item values.
+    await dbContext.items.update(dto);
+
+    // Return the no-content response after a successful update.
+    response.status(StatusCode.NO_CONTENT).end();
+  } catch (error: unknown) {
+    // Translate known repository errors into the existing HTTP response shape.
+    if (error instanceof NotFoundError) {
+      response
+        .status(StatusCode.NOT_FOUND)
+        .json(
+          new ErrorResponseBuilder()
+            .setType(ErrorType.NOT_FOUND_ERROR)
+            .setStatus(StatusCode.NOT_FOUND)
+            .setMessage(error.message)
+            .build(),
+        );
+      return;
+    }
+
+    // Delegate unexpected errors to the global error handler.
+    next(error);
+  }
 };
 
 export const deleteItemHandler: RequestHandler = async (
   request: Request,
-  response: Response
+  response: Response,
+  next: NextFunction,
 ): Promise<void> => {
-  const id = response.locals.validated?.params.id ?? request.params['id'];
+  // Read the item identifier from the route parameters.
+  const id = request.params["itemId"] as string;
 
-  await itemRepository.delete(id);
-  response.status(StatusCode.NO_CONTENT).end();
+  try {
+    // Delete the item when it exists.
+    await dbContext.items.remove(id);
+
+    // Return the no-content response after a successful delete.
+    response.status(StatusCode.NO_CONTENT).end();
+  } catch (error: unknown) {
+    // Delegate unexpected errors to the global error handler.
+    next(error);
+  }
 };
 ```
 
@@ -74,5 +172,5 @@ export const deleteItemHandler: RequestHandler = async (
 - `return` after every `response.status(...).json(...)` to prevent double-send
 - Set `Location` header on 201 Created responses
 - Use `response.status(StatusCode.NO_CONTENT).end()` for 204 responses — no body
-- Read validated params/query/body from `response.locals.validated` when validation middleware provides them
+- Read validated params/query/body from `response.locals.validated` only when the local validation middleware stores parsed output there
 - Keep controllers thin: read input, call a service or repository, return a response

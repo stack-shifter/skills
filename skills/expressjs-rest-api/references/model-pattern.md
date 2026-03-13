@@ -4,55 +4,50 @@ Use this reference when you need a reusable model and validation pattern.
 
 ## Goal
 
-Create TypeScript types, DTOs, and Zod v4 schemas for a domain entity in one coherent model layer.
+Create TypeScript types, DTOs, and Zod schemas for a domain entity in a model layout that matches the repository.
 
 ## Baseline Example
 
 ```ts
-// src/models/item.model.ts
-import { z } from 'zod/v4';
-import { BaseModel, BaseQuery } from './base.model';
-
-// Domain type
-export type Item = BaseModel & {
+// src/models/entities/item.model.ts
+export interface IItem {
+  id?: string;
   name: string;
-  description: string;
-};
+  createdAt?: string;
+  modifiedAt?: string;
+}
 
-// DTOs
-export type ItemPostDto = {
-  name: string;
-  description: string;
-};
+// src/models/query/item.query.ts
+export interface IItemQuery {
+  limit?: number;
+  cursor?: string;
+  sort?: 'asc' | 'desc';
+}
 
-export type ItemPutDto = Omit<Item, 'createdAt' | 'updatedAt'>;
+// src/models/validation/item.validation.ts
+import { z } from 'zod';
 
-export type ItemQuery = BaseQuery;
-
-// Zod schemas for validation middleware
-export const itemIdSchema = z.object({
-  id: z.uuid({ error: 'Invalid item ID format. Must be a valid UUID.' }),
+export const itemPathSchema = z.object({
+  itemId: z.uuid(),
 });
 
 export const itemQuerySchema = z.object({
-  limit: z.coerce.number().max(60, { error: 'Limit maximum is 60.' }).optional(),
-  cursor: z
-    .string()
-    .regex(/^[A-Za-z0-9+/=]+$/, { error: 'Invalid cursor format.' })
-    .max(131072)
-    .optional(),
+  sort: z.enum(['asc', 'desc']).optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+  cursor: z.string().optional(),
 });
 
 export const itemPostDtoSchema = z.object({
-  name: z.string().min(1, { error: 'Name is required.' }).max(128, { error: 'Name maximum length is 128.' }),
-  description: z.string().min(1).max(512),
+  name: z.string().trim().min(1).max(128),
 });
 
 export const itemPutDtoSchema = z.object({
-  id: z.uuidv4(),
-  name: z.string().min(1).max(128),
-  description: z.string().min(1).max(512),
+  id: z.uuid(),
+  name: z.string().trim().min(1).max(128),
 });
+
+export type ItemPostDto = z.infer<typeof itemPostDtoSchema>;
+export type ItemPutDto = z.infer<typeof itemPutDtoSchema>;
 ```
 
 ## Base Model Reference
@@ -73,12 +68,11 @@ export type BaseQuery = {
 
 ## Guidance
 
-- Use `from 'zod/v4'` — not `from 'zod'`
-- If the repository already separates DTOs, domain types, and validation schemas, adapt to that pattern instead of forcing one-file-per-entity.
+- Use the repository's existing Zod import style first. Some repos use `zod`, others use `zod/v4`.
+- If the repository already separates entities, DTOs, query types, and validation schemas, adapt to that pattern instead of forcing one-file-per-entity.
 - If it does not, keeping related types and schemas together is a good default.
 - Use `z.uuid()` for UUID fields, not `z.string().uuid()`
-- Use `z.uuidv4()` in PUT schemas where the ID is part of the body
-- Pass `{ error: '...' }` as the second argument to override default Zod messages
+- Add schema transforms only when the repository already uses parsed output directly or when the normalized result is consumed immediately after validation
 - Use `z.coerce.number()` for query params — they arrive as strings from Express
 - Create separate schema objects per validation target: one for `id` params, one for query, one for body
-- Expect validated and coerced values to be consumed from `response.locals.validated`, especially for query parsing in Express 5
+- Expect validated and coerced values to be consumed from the repository's existing pattern, whether that is `response.locals.validated` or direct reads from the request object
