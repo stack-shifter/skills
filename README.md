@@ -10,6 +10,7 @@
   - [Skills in This Repository](#skills-in-this-repository)
     - [`branch-risk-review`](#branch-risk-review)
     - [`spec-workflow`](#spec-workflow)
+    - [`dynamodb-design`](#dynamodb-design)
     - [`cdk-rest-api-dynamodb`](#cdk-rest-api-dynamodb)
     - [`cdk-rest-api-postgres`](#cdk-rest-api-postgres)
     - [`expressjs-rest-api`](#expressjs-rest-api)
@@ -49,6 +50,14 @@ Runs a locked-spec, phased-plan workflow for feature delivery.
 
 ```bash
 npx skills add stack-shifter/skills --skill spec-workflow
+```
+
+### `dynamodb-design`
+
+Designs DynamoDB schemas from access patterns first, including single-table vs multi-table choices, key design, GSIs, relationships, pagination, uniqueness, TTL, and schema reference documentation.
+
+```bash
+npx skills add stack-shifter/skills --skill dynamodb-design
 ```
 
 ### `cdk-rest-api-dynamodb`

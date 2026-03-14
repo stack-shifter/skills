@@ -53,11 +53,39 @@ Load only the references needed for the task:
 - `references/implementation-guidance.md` for translating the model into code without leaking DynamoDB details through the whole app
 - `references/schema-reference-pattern.md` for generating or updating `docs/schema-reference.md` when the schema is concrete
 
+## Source of truth
+
+Use this order when applying the skill in a real repository:
+
+1. the target repository's existing DynamoDB conventions, repository shape, and schema docs
+2. the patterns in this skill
+3. the inline examples in this skill
+
+If local code differs from the skill examples, follow local code unless the user explicitly wants to replace it.
+
 ## Instructions
 
 ### 1. Start with the workload
 
 Understand the application before suggesting keys or indexes.
+
+Before proposing a new design, do a short discovery pass through the target repository.
+
+Look for:
+
+- existing DynamoDB repositories
+- shared key builders or `keys.ts` files
+- entity type or `Type` conventions
+- existing PK/SK and GSI attribute names
+- cursor and pagination helpers
+- uniqueness or lookup record patterns
+- TTL and expiry conventions
+- `docs/schema-reference.md` or equivalent schema docs
+
+After discovery, choose one mode and state it:
+
+- `Existing pattern mode`: extend the repository's current DynamoDB conventions
+- `Pattern generation mode`: introduce the missing DynamoDB pattern because the repository does not have a coherent one
 
 Capture:
 
@@ -139,6 +167,8 @@ After the access patterns are clear:
 
 For each key or index, state which access pattern it serves.
 
+If the repository already has centralized key helpers or entity constants, extend those instead of inventing inline key strings in new code or examples.
+
 Prefer explicit templates such as:
 
 ```text
@@ -192,12 +222,15 @@ If the schema is already deployed in production, prefer additive changes, reposi
 When the user wants code:
 
 - prefer a repository pattern for DynamoDB access so the domain and business layer are unaware of DynamoDB specifics
+- prefer centralized key builders or conventions modules when the repository already uses them
 - keep indexing attributes separate from application attributes
 - implement DynamoDB mapping at the data-access boundary
 - do not let raw key templates leak through the application layer
 - use a `Type` attribute on every item unless the repository already has an equivalent convention
 - avoid reusing one index attribute across multiple indexes just to save bytes
 - prefer small debug scripts or focused repository methods over opaque abstractions or generic ORMs
+
+If the repository does not already have a coherent DynamoDB structure, introduce the smallest reusable pattern that makes future access patterns easier to implement, usually a repository plus mapper plus key helper instead of one-off request code.
 
 Do not recommend a generic ORM as the main way to interact with DynamoDB.
 
