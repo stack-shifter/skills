@@ -57,7 +57,6 @@ api.get({
 Handler files should export a typed registry constant so `handlerName` values in the stack are never bare strings. A rename in the handler file will not be caught at compile time without the registry.
 
 ```ts
-// src/handlers/client.handler.ts
 export const CLIENT_HANDLER = {
     QUERY: "queryClientHandler",
     GET_BY_ID: "getByIdClientHandler",
@@ -71,7 +70,6 @@ Import and use the registry in the stack for all route wiring:
 
 ```ts
 import { CLIENT_HANDLER } from "../src/handlers/client.handler";
-import { PROJECT_HANDLER } from "../src/handlers/project.handler";
 
 api.get({
     routePath: "/clients",
@@ -79,15 +77,6 @@ api.get({
     filePath: handlerPath("src/handlers/client.handler.ts"),
     handlerName: CLIENT_HANDLER.QUERY,
     description: "/clients",
-    scopes: readScopes,
-});
-
-api.getById({
-    routePath: "/clients/{clientId}",
-    lambdaName: lambdaName("ClientsGetById"),
-    filePath: handlerPath("src/handlers/client.handler.ts"),
-    handlerName: CLIENT_HANDLER.GET_BY_ID,
-    description: "/clients/{clientId}",
     scopes: readScopes,
 });
 
@@ -109,4 +98,4 @@ api.post({
 - Never write `handlerName` as a bare string literal — always import and use the `HANDLER` registry constant from the handler file.
 - `routePath` must start with `/`.
 - Shared environment variables belong in one common helper or route-defaults path, not duplicated inline on every route.
-- Persistence is SQL, so do not add table grants or DynamoDB-specific route options.
+- Keep persistence concerns out of route registration. Route registration should focus on handler wiring, auth, scopes, and shared environment defaults.

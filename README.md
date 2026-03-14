@@ -11,8 +11,7 @@
     - [`branch-risk-review`](#branch-risk-review)
     - [`spec-workflow`](#spec-workflow)
     - [`dynamodb-design`](#dynamodb-design)
-    - [`cdk-rest-api-dynamodb`](#cdk-rest-api-dynamodb)
-    - [`cdk-rest-api-postgres`](#cdk-rest-api-postgres)
+    - [`cdk-rest-api`](#cdk-rest-api)
     - [`expressjs-rest-api`](#expressjs-rest-api)
     - [`repo-templatizer`](#repo-templatizer)
   - [What Are Skills?](#what-are-skills)
@@ -60,20 +59,12 @@ Designs DynamoDB schemas from access patterns first, including single-table vs m
 npx skills add stack-shifter/skills --skill dynamodb-design
 ```
 
-### `cdk-rest-api-dynamodb`
+### `cdk-rest-api`
 
-Builds CDK-based REST APIs with Lambda and DynamoDB using repo patterns first.
-
-```bash
-npx skills add stack-shifter/skills --skill cdk-rest-api-dynamodb
-```
-
-### `cdk-rest-api-postgres`
-
-Builds CDK-based REST APIs with Lambda and Postgres via Drizzle using repo patterns first.
+Builds CDK-based REST APIs with Lambda using repo patterns first, including route composition, auth, middleware, runtime wiring, schedules, and repository-backed persistence boundaries.
 
 ```bash
-npx skills add stack-shifter/skills --skill cdk-rest-api-postgres
+npx skills add stack-shifter/skills --skill cdk-rest-api
 ```
 
 ### `expressjs-rest-api`

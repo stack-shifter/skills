@@ -1,6 +1,6 @@
 # Runtime Composition Pattern
 
-Use this reference when the repository needs a reusable runtime composition layer for shared clients, repositories, and services.
+Use this reference when the repository needs a reusable runtime composition layer for shared clients, repository context, and services.
 
 ## Goal
 
@@ -8,8 +8,8 @@ Create one module-scope composition root that initializes long-lived clients, re
 
 ## Portable Shape
 
-- a composition module such as `src/app.ts` exports singleton SDK clients, service instances, mapper instances, and `dbContext`
-- a context module such as `src/data/context.ts` aggregates repositories behind a single `DatabaseContext`
+- a composition module such as `src/app.ts` exports singleton SDK clients, service instances, mapper instances, and `repositoryContext`
+- a context module such as `src/data/context.ts` aggregates repositories behind a single context object
 - controllers import from `src/app.ts`
 - handlers stay declarative and do not construct dependencies directly
 
@@ -18,46 +18,40 @@ Create one module-scope composition root that initializes long-lived clients, re
 ```ts
 import { SESv2Client } from "@aws-sdk/client-sesv2";
 import { S3Client } from "@aws-sdk/client-s3";
-import { db } from "./data/db/client";
-import { DatabaseContext } from "./data/context";
+import { RepositoryContext } from "./data/context";
 import { EmailService } from "./services/messaging/email.service";
 import { StorageService } from "./services/storage/storage.service";
 
 export const emailClient = new SESv2Client({ maxAttempts: 2 });
 export const s3Client = new S3Client({});
 
-// Entity mappers initialized once and reused across warm Lambda invocations
 export const projectMapper = new ProjectMapper();
-
-export const dbContext = new DatabaseContext(db);
+export const repositoryContext = new RepositoryContext(createRepositoryDependencies());
 export const storageService = new StorageService(s3Client);
 export const emailService = new EmailService(emailClient);
 ```
 
-## Baseline `DatabaseContext`
+## Baseline Repository Context
 
 ```ts
-import { Db } from "./db/client";
 import { ClientRepository } from "./repositories/client.repository";
 import { ProjectRepository } from "./repositories/project.repository";
 
-export class DatabaseContext {
+export class RepositoryContext {
     readonly clients: ClientRepository;
     readonly projects: ProjectRepository;
 
-    constructor(db: Db) {
-        this.clients = new ClientRepository(db);
-        this.projects = new ProjectRepository(db);
+    constructor(deps: RepositoryDependencies) {
+        this.clients = new ClientRepository(deps);
+        this.projects = new ProjectRepository(deps);
     }
 }
 ```
 
-**Mapper singletons** — when the service layer uses dedicated mapper classes to translate between database row shapes and domain models, initialize one mapper per entity type at module scope alongside the other singletons. Mappers are stateless, so a single instance is safe across all invocations and avoids allocation on every request.
-
 ## Guidance
 
-- Reuse one shared `db` client; do not open ad hoc connections in handlers.
-- Add a repository to `DatabaseContext` or an equivalent context object when more than one controller or service may need it.
+- Reuse long-lived runtime dependencies; do not construct repository dependencies ad hoc in handlers.
+- Add a repository to the shared repository context when more than one controller or service may need it.
 - Prefer one lightweight composition module over introducing a heavy DI container unless the repo already uses one.
 - Keep this module limited to wiring. Do not put request logic in it.
 - When the repository already has a composition root, extend it instead of adding a second one.

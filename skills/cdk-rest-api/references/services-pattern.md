@@ -30,28 +30,6 @@ export class LoggerService {
         if (error) console.error(error);
     }
 }
-
-export const loggerService = new LoggerService();
-```
-
-## Baseline Storage Service
-
-```ts
-export class StorageService {
-    constructor(private readonly client: S3Client) {}
-
-    async generateUploadUrl(key: string): Promise<{ url: string; bucketKey: string }> {
-        const command = new PutObjectCommand({
-            Bucket: process.env.S3_BUCKET!,
-            Key: key,
-        });
-
-        return {
-            url: await getSignedUrl(this.client, command, { expiresIn: 600 }),
-            bucketKey: key,
-        };
-    }
-}
 ```
 
 ## Guidance

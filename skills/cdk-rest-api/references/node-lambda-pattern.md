@@ -36,37 +36,33 @@ const handler = new NodeLambda(this, "ClientsQueryHandler", {
 
 A shared environment helper often needs values such as:
 
-- `DATABASE_URL`
 - `FRONTEND_URL`
 - `S3_BUCKET`
 - `SES_IDENTITY_EMAIL`
 - `SES_IDENTITY_EMAIL_ARN`
-
-It may also set:
-
 - `CORS_ORIGIN`
 - `ALLOWED_GROUP`
+- datastore connection settings or repository configuration needed by the target repository
 
 ## Stack Helpers
 
 If the repository exports helper functions from `node-lambda.ts`, use them in the stack instead of building strings inline:
 
 - `getDefaultLambdaEnvironment()` — validates all required env vars and returns a shared environment map; use as `environmentVariables` in `setDefaultRouteOptions` or per-route options
-- `getStackLambdaName(scope, name)` — derives a unique, stack-scoped Lambda function name; use to build `lambdaName` for every route
-- `createSendEmailPolicy(scope)` — produces a minimal IAM policy for SES `SendEmail`; attach only to routes that send email
+- `getStackLambdaName(name, deploymentStage)` — produces a consistent function name; use to build `lambdaName` for every route
+- `createSendEmailPolicy(scope?)` — produces a minimal IAM policy for SES `SendEmail`; attach only to routes that send email
 
 ```ts
 import { createSendEmailPolicy, getDefaultLambdaEnvironment, getStackLambdaName } from './constructs/node-lambda';
 
 const sharedEnvironment = getDefaultLambdaEnvironment();
-const lambdaName = (name: string) => getStackLambdaName(this, name);
+const lambdaName = (name: string) => getStackLambdaName(name, props.deploymentStage);
 
-// For routes that send email, attach the SES policy to the returned Lambda function.
 const fn = api.post({ ... });
 fn.addToRolePolicy(createSendEmailPolicy(this));
 ```
 
-Read `lib/constructs/node-lambda.ts` to confirm the actual exported names and signatures before using these.
+Read the local `node-lambda.ts` to confirm the actual exported names and signatures before using these.
 
 ## Guidance
 
