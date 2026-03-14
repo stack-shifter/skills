@@ -1,6 +1,6 @@
 ---
 name: expressjs-rest-api
-description: Designs and implements REST APIs using Express 5 with TypeScript, following the target repository's patterns first. Use this whenever the user wants to add or modify Express routes, controllers, middleware, validation, authentication, repositories, or services — even if they only ask for "a route", "a controller", "a handler", "validation", or "some middleware".
+description: Designs and implements REST APIs using Express 5 with TypeScript, following the target repository's patterns first. Use this whenever the user wants to add or modify Express routes, controllers, middleware, validation, authentication, repositories, services, or runtime composition — even if they only ask for "a route", "a controller", "a handler", "validation", or "some middleware".
 ---
 
 ## Purpose
@@ -9,18 +9,23 @@ Use this skill to design and implement Express 5 REST APIs in a way that fits th
 
 When local patterns exist, use them as the source of truth. When they do not, use the references in this skill as portable patterns to generate a coherent structure rather than one-off route code.
 
+This skill is about Express API structure and boundaries, not database design. Persistence guidance in this skill stops at the boundary:
+
+- controllers and services should depend on repositories, not datastore clients
+- repositories should be aggregated behind one context or composition object when multiple repositories are used together
+- business and domain layers should not construct datastore-specific requests directly
+
 Portable references live in `references/`. Load only the patterns needed for the task:
 
 - `references/app-pattern.md` for Express app setup and middleware composition
 - `references/route-pattern.md` for route definitions with validation and auth middleware
 - `references/controller-pattern.md` for request handlers, error flow, and response shaping
 - `references/middleware-pattern.md` for auth, validation, and global error middleware
-- `references/repository-pattern.md` for DynamoDB repository classes
-- `references/postgres-pattern.md` for Postgres repository classes using Drizzle ORM
 - `references/model-pattern.md` for TypeScript types and Zod v4 validation schemas
 - `references/error-pattern.md` for typed error classes and `ErrorResponseBuilder`
 - `references/status-code-pattern.md` for the `StatusCode` enum
 - `references/pagination-pattern.md` for cursor pagination interfaces and encoding
+- `references/repository-pattern.md` only for repository boundary, repository interfaces, and aggregate context guidance
 
 ## Express 5 Key Behaviors
 
@@ -28,7 +33,7 @@ Express 5 requires **Node.js 18 or higher**.
 
 For new projects, this skill's default baseline is **Node.js 24** unless the target repository already uses another supported version.
 
-**Async error propagation** is automatic — rejected promises and thrown errors inside `async` route handlers forward to the error handler without an explicit `next(error)`. Controllers still use `try/catch` to handle named error types before that fallback.
+**Async error propagation** is automatic. Rejected promises and thrown errors inside `async` route handlers forward to the error handler without an explicit `next(error)`. Controllers may still use `try/catch` to handle named error types before that fallback when the repository already does so.
 
 **Built-in body parsing** — no separate `body-parser` package needed:
 
@@ -43,8 +48,7 @@ app.use(express.urlencoded({ extended: true }));
 
 **`req.query` should not be treated as the destination for coerced values** — store validated query output on `res.locals` instead of mutating `req.query`.
 
-When the target repository already validates only for rejection and continues reading from `req.body`, `req.params`, or
-`req.query`, preserve that pattern unless the user explicitly wants a validation-pipeline refactor.
+When the target repository already validates only for rejection and continues reading from `req.body`, `req.params`, or `req.query`, preserve that pattern unless the user explicitly wants a validation-pipeline refactor.
 
 **`req.body` is `undefined` until a body parser runs** — do not assume JSON payloads exist before `express.json()`.
 
@@ -60,7 +64,7 @@ New projects use Node.js's built-in `process.loadEnvFile()` instead of `dotenv`.
 
 `.gitignore` must include:
 
-```
+```text
 .env.development
 .env.production
 ```
@@ -75,22 +79,21 @@ if (process.env.NODE_ENV !== 'production') {
 }
 ```
 
-In production (e.g. ECS, Lambda, Fly.io), environment variables are injected directly into the process — no file is loaded. Do not attempt to load a file in production.
+In production, environment variables are injected directly into the process. Do not attempt to load a file in production.
 
 Avoid reading `process.env` at module top level inside imported files before `loadEnvFile()` runs. If a dependency needs env values during initialization, move that env read into a function, a factory, or the app bootstrap path.
 
-When the target repository already relies on package scripts such as `node --env-file=.env.development ...`, preserve
-that approach instead of adding `process.loadEnvFile()` to the app bootstrap.
+When the target repository already relies on package scripts such as `node --env-file=.env.development ...`, preserve that approach instead of adding `process.loadEnvFile()` to the app bootstrap.
 
-## Portability Rule
+## Source of Truth
 
 This skill works across repositories. Do not assume a specific folder layout exists.
 
-Source of truth order:
+Use this order:
 
-1. The target repository's existing patterns and conventions
-2. The skill's documented patterns in `references/`
-3. The inline examples in this skill
+1. the target repository's existing patterns and conventions
+2. the skill's documented patterns in `references/`
+3. the inline examples in this skill
 
 If local code differs from the skill examples, follow local code and use the examples only as design guidance.
 
@@ -109,8 +112,19 @@ Inspect only the parts of the repository that matter for the request. Common pla
 - models and Zod schemas
 - dependency wiring or composition modules
 - error class hierarchy and shared response/status utilities
-- Datastore indicators: DynamoDB SDK imports, Drizzle schema files, `DATABASE_URL` env var
-- style indicators: JSDoc conventions, inline step comments, response builder usage, and route path composition
+- pagination helpers and cursor utilities
+
+Look for:
+
+- how the app bootstrap is composed
+- how routes are mounted and versioned
+- whether controllers already exist or should be added
+- whether validation middleware stores parsed output on `res.locals` or only rejects invalid input
+- whether auth middleware already exists
+- whether repositories and a repository context already exist
+- whether shared services or mappers already exist for the resource area
+- whether utilities already solve status codes, cursor parsing, or error handling
+- style indicators such as JSDoc conventions, inline step comments, response builder usage, and route path composition
 
 After discovery, choose one mode and state it:
 
@@ -128,19 +142,19 @@ Use this mode when the repo already has patterns such as:
 - validation middleware for body, query, and params
 - a 4-parameter global error handler
 - services for business logic and external integrations
-- repository classes for DynamoDB or Postgres
+- repository classes behind a composition or context layer
 - model modules with TypeScript types and Zod schemas
 - typed error classes and a shared status-code utility
 - dependency injection or composition root modules
 
 Preserve local patterns even when they reflect older Express 4-era conventions. Only generate new patterns when the repository does not already establish a coherent approach.
 
-Repository-specific examples of patterns worth preserving when present:
+Patterns worth preserving when present:
 
 - routes mounted under `/v1` with full resource paths declared inside each router
 - controller-local `try/catch` blocks that map known repository errors into `ErrorResponseBuilder` payloads
 - validation middleware that rejects invalid input without storing parsed values on `res.locals`
-- a shared database context or composition object that owns resource repositories
+- a shared repository context or composition object that owns resource repositories
 - function JSDoc and concise step comments inside handlers, middleware, and repositories
 
 ## Pattern Generation Mode
@@ -163,28 +177,22 @@ src/
 ├── app.ts
 ├── controllers/
 ├── data/
-│   ├── repository.interface.ts
-│   ├── pagination.ts
-│   ├── client.ts               ← Drizzle client (Postgres projects only)
-│   └── schema.ts               ← Drizzle schema (Postgres projects only)
+│   ├── context.ts
+│   ├── repositories/
+│   └── repository.interface.ts
 ├── dependencies/
-│   ├── aws.deps.ts             ← AWS clients: Cognito, DynamoDB, etc.
-│   └── project.deps.ts         ← shared singletons: logger, repositories
 ├── middlewares/
 ├── models/
 ├── routes/
 ├── services/
 └── utilities/
-    ├── errors.ts
-    ├── status-code.ts
-    └── mappers/
 ```
 
 Treat this as a conceptual layout, not a hard requirement.
 
 When adding a new resource, a good flow is:
 
-1. model in a model or schema module
+1. model in a model module
 2. route in a router module
 3. controller in a controller or handler module
 4. service method if logic is non-trivial
@@ -198,10 +206,7 @@ When adding a new resource, a good flow is:
 - Express version: 5.x (`express ~5.1.0`)
 - Language: TypeScript; follow the repository's existing module system and compiler settings first
 - Validation: Zod v4 (`zod/v4`)
-- Auth: Cognito JWT validation via `aws-jwt-verify`
-- Datastore: ask the user — DynamoDB or Postgres are both supported
-  - DynamoDB: `@aws-sdk/lib-dynamodb`, single-table design with `PK`/`SK` keys
-  - Postgres: Drizzle ORM (`drizzle-orm`) with the repository's existing driver and wiring pattern first
+- Auth: preserve the repository's existing auth strategy; if generating a new one, prefer reusable JWT/Cognito middleware over inline checks
 - Security headers: `helmet`
 - CORS: `cors` with `CORS_ORIGIN` env var, `*` fallback
 - Environment loading: Node.js `process.loadEnvFile()` in the app bootstrap after imports when the repository does not already use another approach
@@ -215,62 +220,41 @@ When the target repository does not already establish a conflicting pattern, pre
 
 - validated request data stored on `res.locals.validated` instead of mutating `req.query`
 - thin controllers that throw typed domain errors and let global error middleware map them to HTTP responses
-- pagination ordered by stable monotonic keys, not random UUID values
-- DynamoDB `Query` over `Scan` when an access pattern is known
+- repository-backed pagination with a shared cursor utility rather than ad hoc pagination per route
 - structured logging and graceful shutdown hooks for new apps
 - the repo's existing dev runner first; otherwise use `tsx watch` for new TypeScript projects, `node --watch` for compiled JavaScript, and `nodemon` only when custom watch behavior is already part of the project
 
 ## Working Rules
 
-1. Read the relevant local app bootstrap, router, controller, middleware, service, and repository code before editing.
+1. Read the relevant local app bootstrap, router, controller, middleware, service, repository, and composition code before editing.
 2. If the repository already has an app bootstrap pattern, extend it. If not, generate one reusable bootstrap path instead of wiring Express ad hoc in multiple files.
 3. If the repository already has router modules, extend them. If not, generate reusable `Router` modules instead of putting all endpoints directly in the app bootstrap.
-4. Keep controllers thin. Put validation in middleware, orchestration in controllers, and persistence in repositories or services.
+4. Keep controllers thin. Put validation in middleware, orchestration in controllers, and persistence behind repositories.
 5. Reuse an existing composition pattern for dependencies when it exists. If it does not, generate a lightweight composition module rather than constructing shared clients in every controller.
 6. Reuse a shared error and status-code pattern when one exists. If it does not, generate one shared pattern instead of repeating inline HTTP error payloads.
-7. Choose the datastore pattern deliberately: DynamoDB access patterns should drive key design; Postgres access patterns should drive schema and index design.
+7. Keep persistence mechanics behind repositories and one aggregate repository context. Controllers and services should not construct raw datastore requests directly.
 8. Keep generated names, route prefixes, and response shapes aligned with the target repository's conventions.
 9. Match the repository's documentation style when adding code comments: preserve JSDoc and brief step comments when those are established locally.
 
 ## Environment File Templates
 
-### `.env.example` (DynamoDB project)
+### `.env.example`
 
 ```dotenv
 NODE_ENV=
 PORT=3000
 CORS_ORIGIN=
 
-# AWS
+# Auth / identity
 AWS_REGION=
 COGNITO_USER_POOL_ID=
 COGNITO_APP_CLIENT_IDS=
 
-# DynamoDB
-DYNAMODB_TABLE=
-
-# Local development only
-AWS_PROFILE=
-DYNAMODB_ENDPOINT=
+# App-specific dependencies
+APP_DEPENDENCY_CONFIG=
 ```
 
-### `.env.example` (Postgres project)
-
-```dotenv
-NODE_ENV=
-PORT=3000
-CORS_ORIGIN=
-
-# AWS (if using Cognito auth)
-AWS_REGION=
-COGNITO_USER_POOL_ID=
-COGNITO_APP_CLIENT_IDS=
-
-# Postgres
-DATABASE_URL=
-```
-
-### `.env.development` (Postgres example)
+### `.env.development`
 
 ```dotenv
 NODE_ENV=development
@@ -279,17 +263,16 @@ CORS_ORIGIN=http://localhost:5173
 AWS_REGION=us-east-1
 COGNITO_USER_POOL_ID=us-east-1_XXXXXXX
 COGNITO_APP_CLIENT_IDS=your-client-id
-DATABASE_URL=postgres://postgres:password@localhost:5432/myapp_dev
+APP_DEPENDENCY_CONFIG=local
 ```
 
 ## Response Style
 
 When using this skill, produce:
 
-1. A short statement of the route(s) or component being added
-2. Whether you are in `Existing pattern mode` or `Pattern generation mode`
-3. Which datastore is in use (DynamoDB or Postgres)
-4. The planned implementation shape in order: model/schema → route → controller → service → repository → dependencies/composition → app mount
-5. Explicit assumptions where auth, table/schema shape, validation, or bootstrap wiring is ambiguous
+1. a short statement of the route(s) or component being added
+2. whether you are in `Existing pattern mode` or `Pattern generation mode`
+3. the planned implementation shape in order: model → route → controller → service → repository → dependencies/composition → app mount
+4. explicit assumptions where auth, validation, persistence boundary, or bootstrap wiring is ambiguous
 
 Avoid restating generic Express or AWS documentation when a repository-specific code snippet would answer better.

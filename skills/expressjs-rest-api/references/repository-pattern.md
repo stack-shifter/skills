@@ -1,12 +1,17 @@
-# Repository Pattern (DynamoDB)
+# Repository Pattern
 
-Use this reference when you need a reusable DynamoDB repository pattern for an Express API.
-
-For Postgres projects, use `references/postgres-pattern.md` instead.
+Use this reference when an Express API needs persistence access and the repository needs a coherent boundary between controllers/services and the datastore.
 
 ## Goal
 
-Create a typed DynamoDB repository class that implements a shared repository contract and wraps infrastructure failures as domain or database errors.
+Keep controllers and services unaware of datastore mechanics by putting persistence access behind repositories and aggregating repositories behind one shared context when needed.
+
+## Rules
+
+- Controllers and services should ask for domain operations, not construct datastore requests.
+- Repositories own query construction, key construction, transactions, and persistence-specific error handling.
+- When multiple repositories are needed together, expose them through one aggregate context such as `DatabaseContext`, `DataContext`, or `RepositoryContext`.
+- Route handlers should depend on controllers or services, not on datastore clients directly.
 
 ## Repository Interface
 
@@ -14,204 +19,111 @@ Create a typed DynamoDB repository class that implements a shared repository con
 // src/data/repository.interface.ts
 import { CursorPagination } from './pagination';
 
-export interface Repository<T> {
+export interface Repository<T, TQuery = { cursor?: string; limit?: number }> {
   findById(id: string): Promise<T | null>;
-  findAll(query?: { cursor?: string; limit?: number }): Promise<CursorPagination<T>>;
+  findAll(query?: TQuery): Promise<CursorPagination<T>>;
   create(entity: T): Promise<T>;
   update(id: string, entity: Partial<T>): Promise<T>;
   delete(id: string): Promise<void>;
 }
 ```
 
-## Baseline Example
+## Baseline Repository Shape
 
 ```ts
-// src/data/item.repository.ts
-import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb';
-import { Repository } from './repository.interface';
-import { CursorPagination, decodeCursor, encodeCursor } from './pagination';
-import { Item } from '../models/item.model';
-import { loggerService } from '../dependencies/project.deps';
-import { DatabaseError } from '../utilities/errors';
+// src/data/repositories/item.repository.ts
+import { Repository } from '../repository.interface';
+import { CursorPagination } from '../pagination';
+import { Item } from '../../models/item.model';
+import { DatabaseError } from '../../utilities/errors';
 
 export class ItemRepository implements Repository<Item> {
-  private dbContext: DynamoDBDocument;
-
-  constructor(dbContext: DynamoDBDocument) {
-    this.dbContext = dbContext;
-  }
+  constructor(private readonly deps: RepositoryDependencies) {}
 
   async findById(id: string): Promise<Item | null> {
     try {
-      const response = await this.dbContext.get({
-        TableName: process.env.DYNAMODB_TABLE,
-        Key: { PK: `ITEM#${id}`, SK: `METADATA#${id}` },
-      });
-
-      if (!response.Item) return null;
-
-      return {
-        id: response.Item['PK'].split('#')[1],
-        name: response.Item['Name'],
-        description: response.Item['Description'],
-      };
-    } catch (error: any) {
-      loggerService.error('Error retrieving item', error);
+      const record = await this.fetchItemRecord(id);
+      if (!record) return null;
+      return this.mapToDomain(record);
+    } catch (error) {
       throw new DatabaseError('Error retrieving item');
     }
   }
 
   async findAll(query?: { cursor?: string; limit?: number }): Promise<CursorPagination<Item>> {
     try {
-      const { Items, LastEvaluatedKey } = await this.dbContext.scan({
-        TableName: process.env.DYNAMODB_TABLE,
-        Limit: query?.limit || 10,
-        ExclusiveStartKey: query?.cursor
-          ? (decodeCursor(query.cursor).key as any)
-          : undefined,
-      });
-
-      const result: CursorPagination<Item> = {
-        limit: query?.limit || 10,
-        hasNextPage: !!LastEvaluatedKey,
-        items: (Items || []).map((item) => ({
-          id: item['PK'].split('#')[1],
-          name: item['Name'],
-          description: item['Description'],
-        })),
-      };
-
-      if (LastEvaluatedKey) {
-        result.cursor = encodeCursor(LastEvaluatedKey);
-      }
-
-      return result;
-    } catch (error: any) {
-      loggerService.error('Error listing items', error);
+      return await this.fetchItemPage(query);
+    } catch (error) {
       throw new DatabaseError('Error listing items');
     }
   }
 
   async create(entity: Item): Promise<Item> {
     try {
-      await this.dbContext.put({
-        TableName: process.env.DYNAMODB_TABLE,
-        Item: {
-          PK: `ITEM#${entity.id}`,
-          SK: `METADATA#${entity.id}`,
-          Name: entity.name,
-          Description: entity.description,
-        },
-      });
+      await this.insertItem(entity);
       return entity;
-    } catch (error: any) {
-      loggerService.error('Error creating item', error);
+    } catch (error) {
       throw new DatabaseError('Error creating item');
     }
   }
 
   async update(id: string, entity: Partial<Item>): Promise<Item> {
     try {
-      const updates: string[] = [];
-      const names: Record<string, string> = {};
-      const values: Record<string, unknown> = {};
-
-      if (entity.name !== undefined) {
-        updates.push('#name = :name');
-        names['#name'] = 'Name';
-        values[':name'] = entity.name;
-      }
-
-      if (entity.description !== undefined) {
-        updates.push('#desc = :desc');
-        names['#desc'] = 'Description';
-        values[':desc'] = entity.description;
-      }
-
-      if (updates.length === 0) {
-        const current = await this.findById(id);
-        if (!current) throw new DatabaseError('Item not found');
-        return current;
-      }
-
-      const response = await this.dbContext.update({
-        TableName: process.env.DYNAMODB_TABLE,
-        Key: { PK: `ITEM#${id}`, SK: `METADATA#${id}` },
-        UpdateExpression: `SET ${updates.join(', ')}`,
-        ExpressionAttributeNames: names,
-        ExpressionAttributeValues: values,
-        ConditionExpression: 'attribute_exists(PK) AND attribute_exists(SK)',
-        ReturnValues: 'ALL_NEW',
-      });
-
-      if (!response.Attributes) {
-        throw new DatabaseError('Item not found');
-      }
-
-      return {
-        id: response.Attributes['PK'].split('#')[1],
-        name: response.Attributes['Name'],
-        description: response.Attributes['Description'],
-      };
-    } catch (error: any) {
-      if (error.name === 'ConditionalCheckFailedException') {
-        throw new DatabaseError('Item not found');
-      }
-      loggerService.error('Error updating item', error);
+      const updated = await this.updateItem(id, entity);
+      if (!updated) throw new DatabaseError('Item not found');
+      return updated;
+    } catch (error) {
       throw new DatabaseError('Error updating item');
     }
   }
 
   async delete(id: string): Promise<void> {
     try {
-      await this.dbContext.delete({
-        TableName: process.env.DYNAMODB_TABLE,
-        Key: { PK: `ITEM#${id}`, SK: `METADATA#${id}` },
-        ConditionExpression: 'attribute_exists(PK) AND attribute_exists(SK)',
-      });
-    } catch (error: any) {
-      if (error.name === 'ConditionalCheckFailedException') {
-        throw new DatabaseError('Item not found');
-      }
-      loggerService.error('Error deleting item', error);
+      await this.deleteItem(id);
+    } catch (error) {
       throw new DatabaseError('Error deleting item');
     }
   }
 }
 ```
 
-## Dependency Wiring Pattern
+## Aggregate Context Pattern
+
+When multiple repositories are used together, aggregate them behind one context object instead of exporting ad hoc repository singletons.
 
 ```ts
-// src/dependencies/db.deps.ts
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb';
-import { ItemRepository } from '../data/item.repository';
+// src/data/context.ts
+import { ItemRepository } from './repositories/item.repository';
+import { UserRepository } from './repositories/user.repository';
 
-const isLocalDynamoDB = !!process.env.DYNAMODB_ENDPOINT;
+export class RepositoryContext {
+  readonly items: ItemRepository;
+  readonly users: UserRepository;
 
-export const dynamoDBClient = DynamoDBDocument.from(
-  new DynamoDBClient({
-    region: process.env.AWS_REGION,
-    ...(isLocalDynamoDB
-      ? {
-          credentials: { accessKeyId: 'dummy', secretAccessKey: 'dummy' },
-          endpoint: process.env.DYNAMODB_ENDPOINT,
-        }
-      : {}),
-  })
-);
+  constructor(deps: RepositoryDependencies) {
+    this.items = new ItemRepository(deps);
+    this.users = new UserRepository(deps);
+  }
+}
+```
 
-export const itemRepository = new ItemRepository(dynamoDBClient);
+## Composition Pattern
+
+```ts
+// src/dependencies/app.dependencies.ts
+import { RepositoryContext } from '../data/context';
+
+const repositoryDependencies = createRepositoryDependencies();
+
+export const repositoryContext = new RepositoryContext(repositoryDependencies);
+export const itemService = new ItemService(repositoryContext.items);
 ```
 
 ## Guidance
 
-- Keys use `ENTITY#id` prefix pattern: `PK: 'ITEM#<id>'`, `SK: 'METADATA#<id>'`
 - If the repository already has a repository contract or dependency composition pattern, adapt this shape to it instead of introducing a second one.
-- If it does not, generate one reusable repository and composition pattern rather than calling the AWS SDK directly from controllers.
-- Always catch DynamoDB SDK errors and rethrow as `DatabaseError` — controllers do the HTTP mapping
-- Use `ExpressionAttributeNames` to avoid DynamoDB reserved word conflicts in update expressions
-- In production, supply no credentials — the SDK picks up the IAM role from the compute environment
-- `DYNAMODB_ENDPOINT` in `.env.development` enables a local DynamoDB container via Docker Compose
-- Prefer `Query` over `Scan` when the repository has a known access pattern; use `Scan` only as a generic fallback
+- If it does not, generate one reusable repository and composition pattern rather than calling datastore clients directly from controllers.
+- Repository methods should be named after domain operations or access patterns, not after raw persistence APIs.
+- Keep mapping between persistence records and domain objects inside repositories or dedicated mappers, not in controllers.
+- Keep pagination helpers and cursor encoding inside the data-access layer or shared utilities rather than assembling cursors in controllers.
+- Translate persistence-specific errors into shared application errors at the repository boundary so controllers can stay HTTP-focused.
