@@ -10,7 +10,7 @@ Keep controllers and services unaware of datastore mechanics by putting persiste
 
 - Controllers and services should ask for domain operations, not construct datastore requests.
 - Repositories own query construction, key construction, transactions, and persistence-specific error handling.
-- When multiple repositories are needed together, expose them through one aggregate context such as `DatabaseContext`, `DataContext`, or `RepositoryContext`.
+- When multiple repositories are needed together, expose them through one aggregate context such as `DatabaseContext`, `DataContext`, or `Context`.
 - Route handlers should depend on controllers or services, not on datastore clients directly.
 
 ## Repository Interface
@@ -38,7 +38,7 @@ import { Item } from '../../models/item.model';
 import { DatabaseError } from '../../utilities/errors';
 
 export class ItemRepository implements Repository<Item> {
-  constructor(private readonly deps: RepositoryDependencies) {}
+  constructor(private readonly db: RepositoryDependencies) {}
 
   async findById(id: string): Promise<Item | null> {
     try {
@@ -96,13 +96,13 @@ When multiple repositories are used together, aggregate them behind one context 
 import { ItemRepository } from './repositories/item.repository';
 import { UserRepository } from './repositories/user.repository';
 
-export class RepositoryContext {
+export class Context {
   readonly items: ItemRepository;
   readonly users: UserRepository;
 
-  constructor(deps: RepositoryDependencies) {
-    this.items = new ItemRepository(deps);
-    this.users = new UserRepository(deps);
+  constructor(db: RepositoryDependencies) {
+    this.items = new ItemRepository(db);
+    this.users = new UserRepository(db);
   }
 }
 ```
@@ -111,12 +111,12 @@ export class RepositoryContext {
 
 ```ts
 // src/dependencies/app.dependencies.ts
-import { RepositoryContext } from '../data/context';
+import { Context } from '../data/context';
 
-const repositoryDependencies = createRepositoryDependencies();
+const db = createRepositoryDependencies();
 
-export const repositoryContext = new RepositoryContext(repositoryDependencies);
-export const itemService = new ItemService(repositoryContext.items);
+export const context = new Context(db);
+export const itemService = new ItemService(context.items);
 ```
 
 ## Guidance

@@ -10,7 +10,7 @@ Keep controllers and services unaware of datastore mechanics by putting persiste
 
 - Controllers and services should ask for domain operations, not construct datastore requests.
 - Repositories own query construction, key construction, transactions, and persistence-specific error handling.
-- When multiple repositories are needed together, expose them through one aggregate context such as `DatabaseContext`, `DataContext`, or `RepositoryContext`.
+- When multiple repositories are needed together, expose them through one aggregate context such as `DatabaseContext`, `DataContext`, or `Context`.
 - Handlers should depend on controllers or services, not on datastore clients directly.
 
 ## Portable Shape
@@ -31,13 +31,13 @@ src/
 import { ProjectRepository } from "./repositories/project.repository";
 import { UserRepository } from "./repositories/user.repository";
 
-export class RepositoryContext {
+export class Context {
     readonly projects: ProjectRepository;
     readonly users: UserRepository;
 
-    constructor(deps: RepositoryDependencies) {
-        this.projects = new ProjectRepository(deps);
-        this.users = new UserRepository(deps);
+    constructor(db: RepositoryDependencies) {
+        this.projects = new ProjectRepository(db);
+        this.users = new UserRepository(db);
     }
 }
 ```
@@ -45,17 +45,17 @@ export class RepositoryContext {
 ## Baseline Composition
 
 ```ts
-import { RepositoryContext } from "./data/context";
+import { Context } from "./data/context";
 
-const repositoryDependencies = createRepositoryDependencies();
+const db = createRepositoryDependencies();
 
-export const repositoryContext = new RepositoryContext(repositoryDependencies);
-export const projectService = new ProjectService(repositoryContext.projects);
+export const context = new Context(db);
+export const projectService = new ProjectService(context.projects);
 ```
 
 ## Guidance
 
-- Extend an existing repository context if the repository already has one.
+- Extend an existing context if the repository already has one.
 - If no context exists, introduce the smallest reusable version rather than wiring repositories ad hoc in each handler.
 - Repository methods should be named after domain operations or access patterns, not after raw persistence APIs.
 - Keep mapping between persistence objects and domain objects inside repositories or dedicated mappers, not in controllers.
