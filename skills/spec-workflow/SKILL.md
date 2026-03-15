@@ -163,7 +163,7 @@ Minimal spec template:
 Within each phase, include:
 
 - atomic tasks with stable IDs such as `P1.T1`
-- checkboxes
+- checkboxes — mark each task `[x]` immediately after it is complete
 - expected files to change
 - validation commands to run after the phase's tasks are complete
 - a gate describing what must be true before the phase is considered complete
@@ -178,6 +178,8 @@ Minimal plan template:
 ## Phase 1 - <Phase Name>
 
 ### Tasks
+
+<!-- Mark each task [x] immediately after it is complete. -->
 
 - [ ] `P1.T1` <small, reviewable task>
 - [ ] `P1.T2` <small, reviewable task>
@@ -198,6 +200,8 @@ Minimal plan template:
 ## Phase 2 - <Phase Name>
 
 ### Tasks
+
+<!-- Mark each task [x] immediately after it is complete. -->
 
 - [ ] `P2.T1` <small, reviewable task>
 
@@ -377,6 +381,7 @@ When a phase is complete, present the review in this format:
 **Gate:** <pass / fail with details>
 
 ---
+
 Provide feedback to adjust this phase, or reply "proceed" to start Phase <N+1>.
 ```
 
