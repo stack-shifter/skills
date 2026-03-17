@@ -115,7 +115,7 @@ For each one, include:
 
 ### Primary Key Design
 
-Document the main PK/SK templates explicitly.
+Document the main PK/SK templates explicitly. Favor the same literal string shapes that appear in repository `Item` and `Key` blocks, not abstract helper names.
 
 Example:
 
@@ -132,6 +132,13 @@ For each GSI, include:
 - key template
 - which access patterns it serves
 - whether it is sparse or overloaded
+
+When helpful, show the exact persisted string shape directly, for example:
+
+```text
+GSI1PK = CATEGORY#WORKSPACE#{workspaceId}#{categoryId}
+GSI1SK = PROJECT#{projectId}
+```
 
 ### Item Families
 
@@ -185,4 +192,5 @@ Capture high-signal caveats only, such as:
 - keep the document easy to scan
 - update the existing file in place rather than rewriting unrelated sections
 - match what the live code actually does, not what the design might become later
+- mirror the literal key strings used in the repository code when the codebase keeps keys inline
 - keep Mermaid diagrams compact and readable in plain Markdown

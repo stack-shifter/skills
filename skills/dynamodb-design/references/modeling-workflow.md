@@ -80,6 +80,8 @@ Think in terms of item collections:
 
 Aim to satisfy each important access pattern with as few requests as possible.
 
+When translating the model into code, prefer repository code that shows the final key strings inline on the item or query request instead of routing them through a shared key-builder file.
+
 ### 5. Add secondary indexes only for real needs
 
 Use GSIs for alternate access paths that cannot be handled well with the base table.

@@ -74,7 +74,7 @@ Before proposing a new design, do a short discovery pass through the target repo
 Look for:
 
 - existing DynamoDB repositories
-- shared key builders or `keys.ts` files
+- whether repositories inline final key strings directly on items and query call sites
 - entity type or `Type` conventions
 - existing PK/SK and GSI attribute names
 - cursor and pagination helpers
@@ -167,7 +167,7 @@ After the access patterns are clear:
 
 For each key or index, state which access pattern it serves.
 
-If the repository already has centralized key helpers or entity constants, extend those instead of inventing inline key strings in new code or examples.
+Prefer key templates that are easy to read directly in the repository item and query code. Do not introduce or recommend a shared `keys.ts`, centralized key-builder object, or helper layer whose main job is string interpolation.
 
 Prefer explicit templates such as:
 
@@ -222,7 +222,7 @@ If the schema is already deployed in production, prefer additive changes, reposi
 When the user wants code:
 
 - prefer a repository pattern for DynamoDB access so the domain and business layer are unaware of DynamoDB specifics
-- prefer centralized key builders or conventions modules when the repository already uses them
+- keep final PK/SK/GSI string literals visible in the repository item payloads and DynamoDB call sites
 - keep indexing attributes separate from application attributes
 - implement DynamoDB mapping at the data-access boundary
 - do not let raw key templates leak through the application layer
@@ -230,11 +230,13 @@ When the user wants code:
 - avoid reusing one index attribute across multiple indexes just to save bytes
 - prefer small debug scripts or focused repository methods over opaque abstractions or generic ORMs
 
-If the repository does not already have a coherent DynamoDB structure, introduce the smallest reusable pattern that makes future access patterns easier to implement, usually a repository plus mapper plus key helper instead of one-off request code.
+If the repository does not already have a coherent DynamoDB structure, introduce the smallest reusable pattern that makes future access patterns easier to implement, usually a repository plus mapper with explicit inline key strings instead of one-off request code or a shared key-helper module.
 
 Do not recommend a generic ORM as the main way to interact with DynamoDB.
 
 Repository methods should be named after domain operations or access patterns, not after raw DynamoDB APIs. The service or business layer should ask for things like `findProjectById`, `listTenantProjects`, or `saveSubscription`, not construct keys or call `Query` directly.
+
+Inside the repository, prefer readable duplication over indirection for key strings. A reader should be able to look at the `Item`, `Key`, or `ExpressionAttributeValues` block and immediately see the stored PK/SK/GSI values without jumping to a helper file.
 
 ## Response style
 

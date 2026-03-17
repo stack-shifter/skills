@@ -18,7 +18,7 @@ Inside the application core:
 At the boundary:
 
 - expose repository methods that represent domain reads and writes
-- construct key templates
+- construct the final key strings at the repository call site
 - map items to domain objects
 - perform type conversion
 - attach indexing attributes
@@ -28,6 +28,19 @@ Typical shape:
 - service/business layer calls repository interfaces
 - repository implementation owns DynamoDB key design and request construction
 - mappers translate between DynamoDB items and domain entities
+
+Prefer repository code where the stored key values are obvious in place:
+
+```ts
+Item: {
+  PK: `WORKSPACE#${workspaceId}`,
+  SK: `PROJECT#NAME#${projectNameLower}#ID#${projectId}`,
+  GSI1PK: `CATEGORY#WORKSPACE#${workspaceId}#${categoryId}`,
+  GSI1SK: `PROJECT#${projectId}`,
+}
+```
+
+Avoid hiding these values behind a shared `keys.ts`, `Keys` object, or helper whose main job is string interpolation. In this style, a little duplication is acceptable because it keeps reads and writes easier to follow.
 
 ## Attribute separation
 
@@ -75,6 +88,7 @@ This helps with:
 - Prefer explicit repository or data-access methods over a generic ORM.
 - Small debug scripts can make DynamoDB access patterns easier to inspect than the console.
 - Keep code close to the modeled access patterns so a reader can see which query each method supports.
+- Prefer explicit string literals in `Item`, `Key`, and `ExpressionAttributeValues` blocks over indirection through centralized key-builder modules.
 
 ## Repository pattern preference
 
@@ -94,6 +108,8 @@ Avoid pushing these concerns into services or controllers:
 - GSI selection
 
 The business layer should know what it wants to load or save, not how DynamoDB stores it.
+
+Within the repository layer, do not over-abstract key construction. Small local variables are fine when they improve readability, but the final PK/SK/GSI shapes should remain visible near the DynamoDB request that uses them.
 
 ## Concurrency and versioning
 
