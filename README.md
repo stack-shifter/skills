@@ -13,6 +13,7 @@
     - [`dynamodb-design`](#dynamodb-design)
     - [`cdk-rest-api`](#cdk-rest-api)
     - [`expressjs-rest-api`](#expressjs-rest-api)
+    - [`prototype`](#prototype)
     - [`repo-templatizer`](#repo-templatizer)
   - [What Are Skills?](#what-are-skills)
   - [Building Custom Skills](#building-custom-skills)
@@ -73,6 +74,14 @@ Builds Express 5 REST APIs with TypeScript using repo patterns first.
 
 ```bash
 npx skills add stack-shifter/skills --skill expressjs-rest-api
+```
+
+### `prototype`
+
+Builds frontend-only UI prototypes from requirements, generating self-contained HTML screen or flow files plus a companion product spec document.
+
+```bash
+npx skills add stack-shifter/skills --skill prototype
 ```
 
 ### `repo-templatizer`
