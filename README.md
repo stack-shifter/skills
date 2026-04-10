@@ -46,7 +46,7 @@ npx skills add stack-shifter/skills --skill branch-risk-review
 
 ### `spec-workflow`
 
-Runs a locked-spec, phased-plan workflow for feature delivery.
+Runs a locked-spec workflow for feature delivery, with clarification-first drafting and phase-by-phase implementation check-ins.
 
 ```bash
 npx skills add stack-shifter/skills --skill spec-workflow
