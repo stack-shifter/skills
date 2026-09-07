@@ -1,5 +1,7 @@
 # Infrastructure
 
+The Storm examples apply when the library is installed. For existing project constructs without Storm, use `general-cdk.md`; keep the same application layers.
+
 Use the installed Storm exports. This stack excerpt assumes `props.deploymentStage`, `table`, and validated token settings come from project configuration. A connection table is illustrative; adapt persistence to the project.
 
 ## Handler Registry

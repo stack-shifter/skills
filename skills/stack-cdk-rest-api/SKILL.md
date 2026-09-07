@@ -1,6 +1,6 @@
 ---
-name: stack-storm-rest-api
-description: Design and implement AWS CDK REST APIs using Storm infrastructure and project-local application structure. Use for API Gateway REST routes, Lambda handlers, Cognito authorization, request validation, middleware, runtime composition, reusable API constructs, and related scheduled jobs.
+name: stack-cdk-rest-api
+description: Design and implement AWS CDK REST APIs using Storm when installed or Storm-style project-local constructs, with project-local application structure. Use for API Gateway REST routes, Lambda handlers, Cognito authorization, request validation, middleware, runtime composition, reusable API constructs, and related scheduled jobs.
 ---
 
 ## Purpose
@@ -9,11 +9,11 @@ Deliver working REST API changes that fit the target project. Separate infrastru
 
 ## Infrastructure and Application Structure
 
-Use `@stack-shifter/storm-stack` for supported API, Lambda, and resource-import constructs. Add a compatible dependency using the project’s package manager and verify its installed exports. If package access is unavailable, report the blocker rather than silently generating replacement constructs.
+Prefer Storm's supported constructs when `@stack-shifter/storm-stack` is installed. Otherwise extend existing project constructs or build Storm-style project-local constructs around native CDK resources. Explicit user preferences take precedence. Do not automatically install Storm or migrate existing infrastructure; adding a route should not replace its API. Inspect the actual exports and signatures before choosing examples. Keep native resource wiring inside API/Lambda constructs and stack modules focused on composition. Implement only the construct capabilities needed by the requested flow; preserve compatible existing interfaces.
 
 Keep application code in the familiar project-local structure: `authorizedGroup(...)`, `withCommonMiddleware` / `withWriteMiddleware`, controllers, services, repositories, a shared repository context, and `app.ts`. Storm supplies infrastructure; it does not replace these application layers. Reuse library utilities only when their interfaces fit the application's contract.
 
-This skill covers Storm infrastructure. Alternative API and Lambda constructs are outside its scope. Do not migrate an existing API to Storm without a migration request; preserve its application code and public contracts during any requested migration.
+
 
 ## Source of Truth
 
@@ -63,14 +63,14 @@ After discovery, choose the appropriate approach and state it:
 - `Existing pattern mode`: the repository already has abstractions worth extending
 - `Pattern generation mode`: the repository is missing one or more pieces, so generate code that establishes the pattern cleanly
 
-Use Storm for infrastructure covered by this skill. Separate library interfaces from project-local helpers; verify names and signatures before choosing an example.
+Choose infrastructure using the dependency policy above. Separate library interfaces from project-local helpers; verify names and signatures before choosing an example.
 
 ## Existing Pattern Mode
 
 Use the repository's existing abstractions directly:
 
-- Storm `RestApi`
-- Storm `LambdaNode`
+- Storm `RestApi` when installed, or the existing project/API Gateway REST construct
+- Storm `LambdaNode` when installed, or the existing or local Lambda wrapper
 - importer helpers for existing infrastructure
 - response helpers such as `RestResult`
 - repository context or runtime composition modules such as `src/app.ts`
@@ -84,7 +84,7 @@ Use this mode when the target repository has no reusable abstraction for one or 
 
 In this mode:
 
-- use Storm’s supported constructs for new infrastructure; do not generate local copies of the library
+- prefer installed Storm constructs; otherwise use existing project constructs or build focused project-local constructs with similar route composition
 - use application references as guidance for the shape of the code, not as a demand that exact filenames or classes exist
 - create only the minimal new abstraction needed to keep the generated code coherent and reusable
 - use the connected project-local examples for new application structure; introduce shared abstractions when repetition or requirements justify them
@@ -124,7 +124,7 @@ src/
 └── app.ts
 ```
 
-Import Storm constructs from the package; `lib/constructs/` is for project-specific helpers or extensions, not copied library implementations. Keep the application layout below regardless of the infrastructure choice.
+Import installed Storm constructs from the package when selected; `lib/constructs/` is for project-specific helpers or extensions, not copied library implementations. Keep the application layout below regardless of the infrastructure choice.
 
 Treat this as a conceptual layout, not a hard requirement:
 
@@ -142,6 +142,7 @@ Treat this as a conceptual layout, not a hard requirement:
 
 Load only what the task needs:
 
+- `references/general-cdk.md`: project-local REST and Lambda constructs, route composition, and grants when Storm is absent.
 - `references/rest-api-pattern.md`: Storm route wiring, defaults, grants, and handler registries.
 - `references/node-lambda-pattern.md`: Lambda configuration and version-dependent defaults.
 - `references/importer-pattern.md`: existing resource references.

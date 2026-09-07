@@ -1,5 +1,7 @@
 # Node Lambda Pattern
 
+The Storm examples apply when the library is installed. For existing project constructs without Storm, use `general-cdk.md`; keep the same application layers.
+
 Use this reference when you need guidance for a reusable Node.js Lambda wrapper or shared runtime defaults.
 
 ## Goal
@@ -64,7 +66,7 @@ Read the local `node-lambda.ts` to confirm the actual exported names and signatu
 
 ## Guidance
 
-- Use Storm `LambdaNode` directly; do not generate a competing Lambda wrapper.
+- When Storm is selected, use `LambdaNode` directly; otherwise reuse the project wrapper or a local `LambdaNode` wrapping `NodejsFunction`.
 - Keep new environment variables explicit and additive through one shared helper or config path.
 - Reuse a shared naming helper when the stack already has one.
 - If a route needs more memory or another timeout, override only that property instead of redefining the whole Lambda shape.

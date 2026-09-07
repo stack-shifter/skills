@@ -1,5 +1,7 @@
 # Authentication and Authorization
 
+Use the displayed Storm helper imports when installed. Without Storm, use the application helper imports described in `general-cdk.md`; the application flow stays the same.
+
 Authenticate during the connection handshake. Store a stable subject and server-authorized recipient scope with the connection. A client-provided subject or topic is not authorization.
 
 ## Request Authorizer

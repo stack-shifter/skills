@@ -1,5 +1,7 @@
 # Schedule Pattern
 
+The Storm examples apply when the library is installed. For existing project constructs without Storm, use `general-cdk.md`; keep the same application layers.
+
 Use this reference when the repository needs a reusable pattern for EventBridge-triggered scheduled Lambda jobs.
 
 ## Goal

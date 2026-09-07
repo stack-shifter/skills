@@ -1,5 +1,7 @@
 # Connection Lifecycle
 
+Use the displayed Storm helper imports when installed. Without Storm, use the application helper imports described in `general-cdk.md`; the application flow stays the same.
+
 Keep connection operations behind a repository. The example stores one authorized scope per connection; adapt this to actual membership requirements without trusting message-supplied recipient scope.
 
 ## Repository Contract

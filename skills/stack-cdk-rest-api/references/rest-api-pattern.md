@@ -1,5 +1,7 @@
 # REST API Pattern
 
+The Storm examples apply when the library is installed. For existing project constructs without Storm, use `general-cdk.md`; keep the same application layers.
+
 Use this reference when you need a reusable pattern for centralized API Gateway REST route composition.
 
 ## Goal

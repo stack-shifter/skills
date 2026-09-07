@@ -1,25 +1,25 @@
 ---
-name: stack-storm-websocket-api
-description: Build AWS API Gateway WebSocket APIs with Storm, including connection authentication, message routes, connection tracking, and callbacks. Use for Storm WebSocket infrastructure and its handlers, middleware, controllers, services, and repositories; use the REST skill for HTTP endpoints.
+name: stack-cdk-websocket-api
+description: Build AWS API Gateway WebSocket APIs with Storm when installed or Storm-style project-local constructs, including connection authentication, message routes, connection tracking, and callbacks. Use for WebSocket infrastructure and its handlers, middleware, controllers, services, and repositories; use the REST skill for HTTP endpoints.
 ---
 
 ## Purpose
 
-Use Storm for infrastructure and the project's familiar application structure for behavior. Keep examples connected: authenticate a connection, store trusted identity, validate an update message, notify authorized recipients, and clean up connections.
+Choose infrastructure from installed dependencies and preserve the project's familiar application structure for behavior. Keep examples connected: authenticate a connection, store trusted identity, validate an update message, notify authorized recipients, and clean up connections.
 
 ## Discover First
 
 Inspect package manifests, installed Storm exports and types, stack routes, handler registries, middleware, controllers, services, repositories, composition modules, and tests. Follow explicit requirements, then existing application contracts, then these examples.
 
-- **Existing pattern mode:** extend Storm route wiring and the existing application layers.
-- **Pattern generation mode:** use Storm constructs and the connected examples below for missing pieces. Create only the application modules needed by the flow.
+- **Existing pattern mode:** extend existing route wiring and the existing application layers.
+- **Pattern generation mode:** use installed Storm or Storm-style project-local constructs and the connected examples below for missing pieces. Create only the application modules needed by the flow.
 
-Use `@stack-shifter/storm-stack` for infrastructure. Add a compatible dependency with the project's package manager when needed. Do not copy library constructs or migrate alternative infrastructure without a migration request. Verify installed versions before relying on examples.
+Prefer Storm's supported constructs when `@stack-shifter/storm-stack` is installed. Otherwise extend existing project constructs or build Storm-style project-local constructs around native CDK resources. Explicit user preferences take precedence. Do not automatically install Storm or migrate existing infrastructure; adding a route should not replace its API. Inspect the actual exports and signatures before choosing examples. Keep native resource wiring inside API/Lambda constructs and stack modules focused on composition. Implement only the construct capabilities needed by the requested flow; preserve compatible existing interfaces.
 
 ## Implementation Steps
 
 1. Identify connection authentication, route keys, message shapes, recipient authorization, acknowledgments, and expiry behavior. Preserve existing contracts; resolve material gaps before affected work.
-2. Register routes with Storm `WebSocketApi`. Keep handler names centralized, check actual exports, and give each Lambda only its required resource access.
+2. Register routes with installed Storm or project-local WebSocket constructs. Keep handler names centralized, check actual exports, and give each Lambda only its required resource access.
 3. Authenticate at `$connect` and save trusted identity with the connection. For later messages, load trusted connection state and enforce current authorization rather than accepting identity from message bodies.
 4. Keep handlers declarative with `withCommonMiddleware` and `withMessageMiddleware`. Parse and validate messages before controllers run; translate expected failures consistently.
 5. Put connection persistence behind repositories and callbacks behind a messaging service. Compose reusable clients, context, and services in `app.ts` or existing dependency modules.
@@ -58,6 +58,7 @@ Preserve an established `dependencies/` composition root instead of introducing 
 
 Load only the relevant references; the snippets are related application modules, not a standalone generated project.
 
+- `references/general-cdk.md`: project-local WebSocket/Lambda constructs and application helper imports when Storm is absent.
 - `references/infrastructure.md`: direct Storm constructs, route registry, defaults, grants, and URLs.
 - `references/authentication.md`: request authorizer, trusted identity, and action authorization.
 - `references/middleware-messages.md`: typed common/message middleware, validation, and response semantics.

@@ -1,5 +1,7 @@
 # Middleware and Messages
 
+Use the displayed Storm helper imports when installed. Without Storm, use the application helper imports described in `general-cdk.md`; the application flow stays the same.
+
 Use common middleware and message middleware in the same style as REST, with WebSocket types and parsing. Do not apply HTTP content-type validators or REST event normalizers to socket messages.
 
 ## Typed Input

@@ -26,7 +26,7 @@ When evaluating changes to this skill, exercise:
 
 1. An installed Storm project adding a protected read route: public exports, constructor defaults, read grant, validated inputs, and working handler wiring.
 2. An existing Storm API adding a route: common/write middleware, authorization, controllers, dependency modules, repository context, and response contract retained.
-3. A new project: compatible Storm dependency and direct library constructs, with common/write middleware, controllers, repository context, and app composition for the required application behavior. No copied infrastructure library or unnecessary wrapper functions.
+3. A new project with Storm installed: compatible dependency and direct library constructs, with common/write middleware, controllers, repository context, and app composition for the required application behavior. No copied infrastructure library or unnecessary wrapper functions.
 
 For each scenario inspect generated code and run available type checks, focused tests, and synthesis. Static review alone does not verify runtime behavior. Record missing tooling or dependencies explicitly.
 
@@ -35,3 +35,12 @@ For each scenario inspect generated code and run available type checks, focused 
 - Summarize completed routes and meaningful configuration/contract changes.
 - Report checks and limitations accurately, including unverified synthesis or execution.
 - Update the active delivery plan when using stack-spec-workflow; do not introduce a competing plan or approval gate.
+
+## Infrastructure Selection Checks
+
+- With Storm installed, prefer its supported constructs and verify their signatures.
+- Without Storm, extend existing project constructs or synthesize project-local constructs without adding a Storm dependency.
+- Explicit user preferences win; do not migrate existing APIs automatically.
+- Exercise both infrastructure paths with the same application behavior and permission checks.
+
+- Without Storm, stack examples call local construct route methods; native Lambda, API, stage, and integration wiring stays inside constructs. Check the documented subset of defaults and grants rather than assuming full Storm compatibility.

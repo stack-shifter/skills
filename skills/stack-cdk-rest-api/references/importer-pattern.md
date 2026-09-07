@@ -1,5 +1,7 @@
 # Importer Pattern
 
+The Storm examples apply when the library is installed. For existing project constructs without Storm, use `general-cdk.md`; keep the same application layers.
+
 Use this reference when stack code needs a reusable pattern for attaching to AWS resources that already exist outside the current CDK stack.
 
 ## Goal

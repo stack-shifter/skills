@@ -11,8 +11,8 @@
     - [`stack-branch-risk-review`](#stack-branch-risk-review)
     - [`stack-spec-workflow`](#stack-spec-workflow)
     - [`stack-dynamodb-design`](#stack-dynamodb-design)
-    - [`stack-storm-rest-api`](#stack-storm-rest-api)
-    - [`stack-storm-websocket-api`](#stack-storm-websocket-api)
+    - [`stack-cdk-rest-api`](#stack-cdk-rest-api)
+    - [`stack-cdk-websocket-api`](#stack-cdk-websocket-api)
     - [`stack-expressjs-rest-api`](#stack-expressjs-rest-api)
     - [`stack-prototype`](#stack-prototype)
     - [`stack-repo-templatizer`](#stack-repo-templatizer)
@@ -61,23 +61,23 @@ Designs DynamoDB schemas from access patterns first, including single-table vs m
 npx skills add stack-shifter/skills --skill stack-dynamodb-design
 ```
 
-### `stack-storm-rest-api`
+### `stack-cdk-rest-api`
 
-Builds CDK-based REST APIs with Lambda using repo patterns first, including route composition, auth, middleware, runtime wiring, schedules, and repository-backed persistence boundaries.
-
-```bash
-npx skills add stack-shifter/skills --skill stack-storm-rest-api
-```
-
-### `stack-storm-websocket-api`
-
-Builds WebSocket APIs with Storm, including connection authentication, message middleware, controllers, connection repositories, and callback delivery.
+Builds CDK-based REST APIs with Lambda, preferring Storm when installed and otherwise using Storm-style project-local constructs, including route composition, auth, middleware, runtime wiring, schedules, and repository-backed persistence boundaries.
 
 ```bash
-npx skills add stack-shifter/skills --skill stack-storm-websocket-api
+npx skills add stack-shifter/skills --skill stack-cdk-rest-api
 ```
 
-Example: “Use stack-storm-websocket-api to add an authenticated updates route with connection tracking and notifications to authorized recipients.”
+### `stack-cdk-websocket-api`
+
+Builds CDK WebSocket APIs, preferring Storm when installed and otherwise using Storm-style project-local constructs, including connection authentication, message middleware, controllers, connection repositories, and callback delivery.
+
+```bash
+npx skills add stack-shifter/skills --skill stack-cdk-websocket-api
+```
+
+Example: “Use stack-cdk-websocket-api to add an authenticated updates route with connection tracking and notifications to authorized recipients.”
 
 ### `stack-expressjs-rest-api`
 

@@ -4,7 +4,7 @@ Mark applicable checks passed, failed, or unverified with a reason. Static inspe
 
 ## Infrastructure
 
-- Installed Storm exports and route option signatures match examples; no copied infrastructure constructs.
+- Selected library or project construct exports and signatures match examples.
 - Registry values resolve to functions in the correct entry modules without initializing runtime dependencies during synthesis.
 - Connect authorizer configuration is separate from route defaults. Only connect has Gateway authentication; message authorization is enforced in application code.
 - Client URL and management endpoint are used correctly, including custom domains and stages.
@@ -26,3 +26,12 @@ Mark applicable checks passed, failed, or unverified with a reason. Static inspe
 - Synthesize affected CDK stacks and inspect auth, stage, response, and IAM configuration when dependencies are available. Do not deploy as a validation shortcut.
 - For already authorized live testing, use two test clients to verify connection, update, acknowledgment, recipient isolation, and disconnect behavior. Never present mock tests as live delivery verification.
 - Report completed routes, contract choices, tests, and remaining limitations. Record progress in the active delivery plan when using stack-spec-workflow.
+
+## Infrastructure Selection Checks
+
+- With Storm installed, prefer its supported constructs and verify their signatures.
+- Without Storm, extend existing project constructs or synthesize project-local constructs without adding a Storm dependency.
+- Explicit user preferences win; do not migrate existing APIs automatically.
+- Exercise both infrastructure paths with the same application behavior and permission checks.
+
+- Without Storm, stack examples call local construct route methods; native Lambda, API, stage, and integration wiring stays inside constructs. Check the documented subset of defaults and grants rather than assuming full Storm compatibility.
