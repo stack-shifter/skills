@@ -12,6 +12,7 @@
     - [`stack-spec-workflow`](#stack-spec-workflow)
     - [`stack-dynamodb-design`](#stack-dynamodb-design)
     - [`stack-storm-rest-api`](#stack-storm-rest-api)
+    - [`stack-storm-websocket-api`](#stack-storm-websocket-api)
     - [`stack-expressjs-rest-api`](#stack-expressjs-rest-api)
     - [`stack-prototype`](#stack-prototype)
     - [`stack-repo-templatizer`](#stack-repo-templatizer)
@@ -67,6 +68,16 @@ Builds CDK-based REST APIs with Lambda using repo patterns first, including rout
 ```bash
 npx skills add stack-shifter/skills --skill stack-storm-rest-api
 ```
+
+### `stack-storm-websocket-api`
+
+Builds WebSocket APIs with Storm, including connection authentication, message middleware, controllers, connection repositories, and callback delivery.
+
+```bash
+npx skills add stack-shifter/skills --skill stack-storm-websocket-api
+```
+
+Example: “Use stack-storm-websocket-api to add an authenticated updates route with connection tracking and notifications to authorized recipients.”
 
 ### `stack-expressjs-rest-api`
 
