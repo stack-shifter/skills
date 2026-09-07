@@ -15,10 +15,14 @@ Create one module-scope composition root that initializes long-lived clients, co
 
 ## Baseline `src/app.ts`
 
+`Context`, repositories, services, mapper, and repository dependency creation are project-local modules. The snippets show their composition; use the actual constructor signatures and imports from the project.
+
 ```ts
 import { SESv2Client } from "@aws-sdk/client-sesv2";
 import { S3Client } from "@aws-sdk/client-s3";
 import { Context } from "./data/context";
+import { createRepositoryDependencies } from "./data/dependencies";
+import { ProjectMapper } from "./services/mapping/project.mapper";
 import { EmailService } from "./services/messaging/email.service";
 import { StorageService } from "./services/storage/storage.service";
 
@@ -34,6 +38,7 @@ export const emailService = new EmailService(emailClient);
 ## Baseline Context
 
 ```ts
+import type { RepositoryDependencies } from "./dependencies";
 import { ClientRepository } from "./repositories/client.repository";
 import { ProjectRepository } from "./repositories/project.repository";
 
@@ -55,3 +60,5 @@ export class Context {
 - Prefer one lightweight composition module over introducing a heavy DI container unless the repo already uses one.
 - Keep this module limited to wiring. Do not put request logic in it.
 - When the repository already has a composition root, extend it instead of adding a second one.
+
+Existing `dependencies/aws.deps.ts` and `dependencies/project.deps.ts` modules are valid composition roots. Extend them when present instead of forcing an `app.ts` migration. Keep request-specific state local and prevent CDK registry imports from initializing runtime dependencies.

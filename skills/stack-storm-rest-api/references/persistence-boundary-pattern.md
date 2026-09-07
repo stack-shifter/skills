@@ -28,6 +28,7 @@ src/
 ## Baseline Context
 
 ```ts
+import type { RepositoryDependencies } from "./dependencies";
 import { ProjectRepository } from "./repositories/project.repository";
 import { UserRepository } from "./repositories/user.repository";
 
@@ -46,6 +47,8 @@ export class Context {
 
 ```ts
 import { Context } from "./data/context";
+import { createRepositoryDependencies } from "./data/dependencies";
+import { ProjectService } from "./services/project.service";
 
 const db = createRepositoryDependencies();
 
@@ -60,3 +63,5 @@ export const projectService = new ProjectService(context.projects);
 - Repository methods should be named after domain operations or access patterns, not after raw persistence APIs.
 - Keep mapping between persistence objects and domain objects inside repositories or dedicated mappers, not in controllers.
 - Do not let controllers or services construct datastore-specific commands, key expressions, or raw persistence requests.
+
+The repository dependencies, repositories, and service above are application-defined modules with constructors matching the example. Preserve an existing direct-export composition structure when present; the context is the baseline for a new grouped repository structure, not a required migration. For operations spanning storage and external services, define partial-failure and retry behavior rather than assuming atomicity.

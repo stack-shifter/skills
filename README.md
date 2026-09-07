@@ -11,7 +11,7 @@
     - [`stack-branch-risk-review`](#stack-branch-risk-review)
     - [`stack-spec-workflow`](#stack-spec-workflow)
     - [`stack-dynamodb-design`](#stack-dynamodb-design)
-    - [`stack-cdk-rest-api`](#stack-cdk-rest-api)
+    - [`stack-storm-rest-api`](#stack-storm-rest-api)
     - [`stack-expressjs-rest-api`](#stack-expressjs-rest-api)
     - [`stack-prototype`](#stack-prototype)
     - [`stack-repo-templatizer`](#stack-repo-templatizer)
@@ -60,12 +60,12 @@ Designs DynamoDB schemas from access patterns first, including single-table vs m
 npx skills add stack-shifter/skills --skill stack-dynamodb-design
 ```
 
-### `stack-cdk-rest-api`
+### `stack-storm-rest-api`
 
 Builds CDK-based REST APIs with Lambda using repo patterns first, including route composition, auth, middleware, runtime wiring, schedules, and repository-backed persistence boundaries.
 
 ```bash
-npx skills add stack-shifter/skills --skill stack-cdk-rest-api
+npx skills add stack-shifter/skills --skill stack-storm-rest-api
 ```
 
 ### `stack-expressjs-rest-api`

@@ -32,20 +32,24 @@ For repository-backed pagination, prefer opaque cursor-based pagination when the
 export const encodeCursor = (data: Record<string, unknown>): string =>
     Buffer.from(JSON.stringify(data)).toString('base64url');
 
-export const decodeCursor = <T>(cursor: string): T =>
-    JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as T;
+export const decodeCursor = (cursor: string): unknown =>
+    JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
 ```
 
 ### Repository usage pattern
 
-Use `encodeCursor` / `decodeCursor` in the repository layer rather than exposing cursor internals to controllers:
+Use `encodeCursor` / `decodeCursor` in the repository layer rather than exposing cursor internals to controllers. This class-method excerpt assumes the project imports `z` from Zod and supplies the shown repository types and mapping methods:
 
 ```ts
-type ProjectCursor = { createdAt: string; id: string };
+// Application schema validates the decoded cursor before use.
+const projectCursorSchema = z.object({
+    createdAt: z.string(),
+    id: z.string(),
+});
 
 async list(params: ListProjectsParams): Promise<PagedResult<IProject>> {
     const { limit, cursor } = params;
-    const cursorData = cursor ? decodeCursor<ProjectCursor>(cursor) : undefined;
+    const cursorData = cursor ? projectCursorSchema.parse(decodeCursor(cursor)) : undefined;
 
     const rows = await this.fetchProjectRows(cursorData, limit + 1);
     const hasNextPage = rows.length > limit;
@@ -55,7 +59,7 @@ async list(params: ListProjectsParams): Promise<PagedResult<IProject>> {
     return {
         limit,
         nextCursor: hasNextPage
-            ? encodeCursor<ProjectCursor>({ createdAt: lastRow.createdAt, id: lastRow.id })
+            ? encodeCursor({ createdAt: lastRow.createdAt, id: lastRow.id })
             : null,
         items: pageRows.map((row) => this.mapProject(row)),
     };
@@ -69,3 +73,5 @@ async list(params: ListProjectsParams): Promise<PagedResult<IProject>> {
 - Keep utility functions pure where possible.
 - Use custom error classes only when callers handle them differently from generic errors.
 - Put `encodeCursor` / `decodeCursor` in a shared utility when more than one repository uses cursor pagination; keep the encoded cursor shape stable across deploys.
+
+Catch malformed encoding/JSON and schema failures at the existing cursor-validation boundary and translate them into the agreed client error. Preserve the project’s established cursor shape; base64 encoding is not authentication. For Storm response helpers, follow `response-pattern.md` rather than assuming the project-local helper methods exist.

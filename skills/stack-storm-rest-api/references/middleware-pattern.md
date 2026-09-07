@@ -15,22 +15,25 @@ Keep handlers declarative by centralizing request normalization, authorization, 
 
 ## Handler Composition Pattern
 
+The logger, context adapter, error middleware, authorization middleware, validators, and controllers below are application modules. Reuse their existing imports. Include the logging adapter only when the project uses it; verify the handler type against the installed Middy version.
+
 Use `withCommonMiddleware` and `withWriteMiddleware` factory helpers inside each handler file rather than repeating the base chain inline.
 
 ```ts
 import middy from '@middy/core';
+import type { APIGatewayProxyHandler } from 'aws-lambda';
 import httpEventNormalizer from '@middy/http-event-normalizer';
 import httpHeaderNormalizer from '@middy/http-header-normalizer';
 import httpJsonBodyParser from '@middy/http-json-body-parser';
 
-const withCommonMiddleware = <T>(handler: T) =>
+const withCommonMiddleware = (handler: APIGatewayProxyHandler) =>
     middy(handler)
         .use(httpHeaderNormalizer())
         .use(httpEventNormalizer())
         .use(injectLambdaContext(logger, { logEvent: false }))
         .use(handleHttpError());
 
-const withWriteMiddleware = <T>(handler: T) =>
+const withWriteMiddleware = (handler: APIGatewayProxyHandler) =>
     withCommonMiddleware(handler).use(httpJsonBodyParser({ disableContentTypeError: true }));
 ```
 
@@ -56,3 +59,10 @@ export const saveEntityHandler = withWriteMiddleware(saveEntityController)
 - Normalize claims once and pass normalized values through `requestContext.authorizer`.
 - Return `RestResult` values for expected request failures such as bad input or missing auth context.
 - Log unexpected middleware failures through the shared logger before returning a generic 500 response.
+
+## Validation and Error Contract
+
+- Preserve parsed schema outputs, including coercions and defaults, in the typed input consumed by controllers.
+- Test malformed JSON, missing bodies, invalid path/query values, and authorization failures. Failed requests must not reach controllers.
+- The write example delegates content-type checks to `validateHeaders(jsonContentTypeSchema)`. Keep parser content-type checks enabled if that validator is absent.
+- Verify error middleware ordering against the installed version so parser and middleware exceptions use the same `RestResult` contract as controllers.

@@ -12,9 +12,9 @@ Load this reference when the repository does not already have a `RestResult`-sty
 
 If the repository already has a `RestResult` class, use it — do not build a parallel response helper.
 
-## RestResult Class Shape
+## Project-Local RestResult Class Shape
 
-Implement `RestResult` as a class of static factory methods. Each method returns an `APIGatewayProxyResult` with consistent headers. CORS origin is read from `process.env.CORS_ORIGIN` at call time, defaulting to `'*'`.
+For this project-local pattern, use `RestResult` as a class of static factory methods. Each method returns an `APIGatewayProxyResult` with consistent headers. CORS origin is read from `process.env.CORS_ORIGIN` at call time, defaulting to `'*'`.
 
 ### Success Methods
 
@@ -63,7 +63,7 @@ Possible mappings:
 
 ## Error Body Shape
 
-All error responses follow the same envelope:
+For a new API adopting this example contract, error responses follow this envelope. Preserve an existing API’s envelope instead:
 
 ```json
 {
@@ -80,3 +80,7 @@ All error responses follow the same envelope:
 - Put repository-level conflict translation in `RestResult` or a dedicated helper so controllers stay small.
 - Add only the methods the feature actually needs.
 - Keep response helpers repository-agnostic.
+
+## Storm Compatibility
+
+Storm’s `RestResult` is a separate interface. Verify its installed methods and signatures; do not assume the project-local methods above exist in the library. The reviewed library uses problem-detail error bodies and `application/problem+json`. Switching helpers must not silently change status codes, error bodies, CORS behavior, or headers. Check parser, validation, and authorization failures as well as controller responses.
