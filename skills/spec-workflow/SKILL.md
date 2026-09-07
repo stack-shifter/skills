@@ -1,6 +1,6 @@
 ---
 name: spec-workflow
-description: Drives a spec-first workflow where the spec is the locked source of truth and implementation runs through plan mode. Use whenever the user wants a feature spec drafted with explicit clarification questions, locked requirements in `docs/specs`, or a "do the next chunk then check in" implementation loop.
+description: Drives a spec-first workflow where the spec is the locked source of truth and mutable plan files track phased implementation. Use whenever the user wants a feature spec drafted with explicit clarification questions, locked requirements in `docs/specs`, a persistent phased implementation plan, or a "do the next chunk then check in" implementation loop.
 ---
 
 # Spec Workflow Skill
@@ -10,7 +10,7 @@ description: Drives a spec-first workflow where the spec is the locked source of
 Keep one stable spec per feature as the source of truth. Get user approval before starting implementation. Check in after each logical chunk of work before continuing.
 
 - **Spec = what** — locked requirements, stable across the entire feature
-- **Plan mode = how** — in-session design derived from the spec before each implementation run
+- **Plan = how** — persistent phases, tasks, validation results, and blockers derived from the spec
 
 ## When to Use
 
@@ -31,18 +31,21 @@ Do not use for trivial one-off edits unless the user explicitly asks for the wor
 
 ## Canonical Layout
 
+Prefer the repository's established spec-and-plan convention. Otherwise, use:
+
 ```text
 docs/
   specs/
     010_task-management.spec.md
-    020_user-invitations.spec.md
+    plans/
+      010_task-management.plan.md
 ```
 
 If `CLAUDE.md` exists in the repository, treat it as an additional instruction source alongside `AGENTS.md`.
 
 ## Naming
 
-File names: `<id>_<slug>.spec.md`
+File names: `<id>_<slug>.spec.md` and `<id>_<slug>.plan.md`. Use the same numeric prefix and stable slug for the feature across both files.
 
 Examples: `010_task-management`, `011_user-invitations`, `012_billing-webhooks`
 
@@ -69,10 +72,38 @@ To choose the next prefix, list existing spec files and increment by 1. Do not u
 
 ## What This Touches
 
-> A loose list of areas, files, and surfaces likely affected. For human reference — not an ordered plan.
-
 - ...
+
+## Plan References
+
+- `docs/specs/plans/<id>_<slug>.plan.md`
 ```
+
+### Keep specs concise
+
+Write the spec as a readable requirements document. Scale its length to the feature; aim for about one page for a small feature, without cutting necessary behavior or constraints to meet a word limit.
+
+- Keep the Overview to one or two sentences explaining the feature and its purpose.
+- Use short scope bullets to define boundaries. Do not repeat the full requirements under In Scope.
+- Write one requirement per bullet with a stable ID such as `R1`. State who or what acts, the required behavior, and any condition that changes the outcome. Prefer plain language and concrete verbs over vague terms such as “robust” or “seamless.”
+- Include error behavior, permissions, limits, and contracts only when they affect correctness or acceptance. Keep technical constraints that are actual requirements; move implementation choices, task breakdowns, file inventories, and validation commands to the plan.
+- Make acceptance criteria observable checks tied to requirement IDs. Use them to show how success is recognized, rather than repeating each requirement verbatim.
+- Keep What This Touches to a few affected areas or surfaces. Put the detailed ownership and file list from the holistic audit in the plan.
+- State each rule once. Link to existing contracts or supporting references instead of copying long explanations. Omit background essays, speculative future work, and sections beyond the template unless needed to resolve a concrete ambiguity.
+
+Example requirement and acceptance check:
+
+```md
+## Requirements
+
+- R1: Only the task owner can delete a task.
+
+## Acceptance Criteria
+
+- R1: An owner can delete their task; another user's attempt is denied and leaves the task unchanged.
+```
+
+Before presenting the spec, remove repetition and implementation detail, then confirm that the remaining requirements are clear and testable. Concision must not hide unresolved questions or omit necessary constraints.
 
 When drafting, mark every assumption or gap inline rather than guessing:
 
@@ -93,14 +124,54 @@ After writing a new spec, always output a summary card:
 
 ```
 Spec:    <id>_<slug>.spec.md
+Plan:    docs/specs/plans/<id>_<slug>.plan.md (planned or created)
 Branch:  dev-<slug>
 Summary: <one-sentence description of the feature>
 Open Questions: <count of [NEEDS CLARIFICATION] markers>
 ```
 
+## Plan File
+
+Use one plan file by default. Use multiple plans only for distinct execution tracks, such as backend and frontend work or a separate migration. Reference every plan from the spec, give each a distinct scope, and operate on one active plan per run unless the user explicitly asks otherwise. Record dependencies between plans in their tasks and gates.
+
+Each plan should use this structure, repeating the phase section as needed:
+
+```md
+# <Feature Title> Plan
+
+Spec: `docs/specs/<id>_<slug>.spec.md`
+
+## Phase 1 - <Outcome>
+
+### Tasks
+
+- [ ] `P1.T1` <small, reviewable task>
+- [ ] `P1.T2` <small, reviewable task>
+
+### Expected Files
+
+- `path/to/file.ts`
+
+### Validation
+
+- <command or manual check>: not run
+
+### Gate
+
+- <observable completion condition>: not verified
+
+## Blockers
+
+- None currently.
+```
+
+Keep the plan execution-oriented. Refine ambiguous or oversized tasks before coding: clarify wording, split tasks, and update file lists, checks, or gates. Preserve existing task IDs when possible and assign new IDs to added tasks. Record blockers and concise validation evidence as work progresses.
+
+If code has drifted from the plan but still matches the spec, update the plan to reflect reality before continuing. Do not hide requirement changes inside plan refinements. Reconcile affected plans whenever an authorized spec revision occurs.
+
 ## Holistic Validation Pass
 
-Run this before drafting or executing against a spec:
+Run this before drafting, revising, or executing a spec or plan:
 
 1. **Surface audit** — find every symbol, config key, route, UI string, contract, and behavior the spec touches. Identify all impacted layers — app, UI, API, data, infrastructure, tests, docs — not just files already named.
 
@@ -126,11 +197,40 @@ Present findings in order: contradictions → missing surface → phase/ordering
 
 When a spec already exists, treat it as the source of truth and run the holistic validation pass before accepting it as execution-ready.
 
-### Stage 2: Implementation
+### Stage 2: Generate the phased plan
+
+Once the spec is locked, create or revise its referenced plan file. Keep execution state in the plan so work can resume across sessions. Read the spec and current code before defining phases.
+
+Break the work into ordered, reviewable phases. For each phase, define:
+
+- the outcome and spec requirements it satisfies
+- atomic tasks with stable IDs such as `P1.T1`, checkboxes, and expected files or surfaces to change
+- validation commands or manual checks appropriate to the change
+- a gate: observable conditions that must pass before the phase is complete
+
+Run the phase executability check against this plan. Each phase must be verifiable using its own work and earlier phases. Include documentation updates when behavior or workflows change.
+
+Present the phase outline and identify the next phase for user approval. Treat an explicit instruction to execute a presented phase as approval; do not ask again for the same work.
+
+When resuming, read the spec and active plan and compare them with the current code. Reconcile completed work and remaining tasks in the plan without changing requirements. Select the earliest phase whose tasks, validation, or gate remain incomplete, even if all its task checkboxes are checked. If the plan is missing, generate it before implementing.
+
+### Stage 3: Implement and review one phase
 
 Before starting implementation, check the current git branch. If on `main` or `master`, ask the user to confirm before creating a `dev-<slug>` branch (e.g., `dev-010-task-management`). Do not create it automatically. If already on a `dev-*` branch, proceed.
 
-Use the locked spec as requirements. Get user approval before executing each phase of work. Stop after each phase and wait for explicit instruction before continuing.
+Use the locked spec as requirements and execute the approved phase:
+
+1. Name the spec, active plan, phase, and task IDs. Implement unchecked tasks in order, keeping changes scoped to the phase. Mark each task `[x]` in the plan immediately after its implementation work is complete.
+2. Run the planned validation and required repository checks. Broaden testing when shared behavior or regression risk warrants it; a full suite is not required for every phase unless repository instructions require it.
+3. Record validation commands and results and the gate status in the plan. A phase is complete only when its tasks are done, validation passes, and the gate is satisfied.
+4. Report completed task IDs, files changed, checks and results, gate status, any spec edits, and remaining blockers. Confirm that the plan is updated.
+5. Stop for feedback or explicit instruction to start the next phase. Address feedback within the current phase and rerun affected checks before presenting the updated review.
+
+If validation fails or a task is blocked, keep the phase incomplete and record the cause in the plan’s Blockers section. Report whether it is a plan issue or requires a spec change; do not silently skip to a later task. Fix regressions within scope; do not weaken tests or acceptance criteria to obtain a pass. Escalate required scope changes using the Spec Change Escalation rule. Do not skip a failed or blocked phase to start later work.
+
+### Stage 4: Verify feature completion
+
+After the final phase, compare the implementation against every spec acceptance criterion. Report each criterion as met, unmet, or unverified, with supporting checks or evidence. Record remaining gaps and completion status in the plan and state whether the feature is ready for review or needs further work. When multiple plans exist, verify all referenced plans before reporting feature completion. Completed phases alone do not establish feature completion.
 
 ## Spec Lock Rule
 
@@ -140,7 +240,7 @@ Do not start implementation while any `[NEEDS CLARIFICATION]` markers remain. Re
 
 During implementation, the user may change direction. Use judgment to decide whether the change is small or large:
 
-**Small change** — absorb it. Update the spec inline and continue. A change is small if it:
+**Small change** — absorb the user's requested change. Update the spec inline, report the affected requirement and any phase impact, and continue. A change is small if it:
 - doesn't invalidate work already completed
 - doesn't change the core approach or architecture
 - can be absorbed into the current or next phase without restructuring
@@ -151,6 +251,8 @@ During implementation, the user may change direction. Use judgment to decide whe
 - changes the core approach or introduces new surfaces
 
 Do not silently absorb a large change by treating it as a small one.
+
+If the agent discovers a requirement change that the user has not requested, use the escalation rule before editing the locked spec, even if the change seems small.
 
 ## Spec Change Escalation
 
@@ -163,14 +265,14 @@ When a change is too large to absorb inline, say so explicitly before proceeding
 
 Wait for user approval before editing the spec or continuing implementation.
 
-## Choosing the Active Spec
+## Choosing the Active Spec and Plan
 
-When multiple specs exist, determine the active file in this order:
+Determine the active spec and its referenced plan in this order:
 
 1. Explicit user-provided file or feature ID
 2. Files referenced in the current task context
 3. Files matching the current branch or active feature name
-4. The only matching spec in the repository
+4. The only matching spec and plan in the repository
 
 If multiple candidates remain, ask the user which to use.
 
@@ -178,6 +280,6 @@ If multiple candidates remain, ask the user which to use.
 
 - Do not advance past the current phase without explicit user instruction.
 - Do not silently change locked requirements by editing the spec during implementation.
-- Do not guess which spec is active when multiple candidates exist.
+- Do not guess which spec or plan is active when multiple candidates exist.
 - Do not store execution state in the spec.
-- Use the spec as the single source of truth.
+- Use the spec as the source of truth for requirements and the plan for execution state.
