@@ -7,6 +7,21 @@ description: Build a new UI prototype from requirements. Generates portable HTML
 
 **Scope: frontend design only.** This skill produces UI prototypes and companion requirements. It does not implement backend routes, API handlers, data access, or auth logic.
 
+## Working with stack-spec-workflow
+
+This skill produces product design artifacts: prototypes, concise product behavior specifications, and shared design guidance. `stack-spec-workflow` organizes and tracks delivery of those artifacts; it can also manage their later runtime implementation.
+
+When both skills are active:
+
+- Read the active delivery spec and plan before starting. Keep them in `docs/specs/` and `docs/specs/plans/`, or the established delivery-workflow location. Keep product specifications in `product-spec/`; do not move delivery documents there or treat a product spec as the delivery spec.
+- Execute only the prototype activities covered by the approved delivery phase. The numbered phases below describe this skill's procedure, not additional approval gates. Reuse existing authorization and stop at the delivery plan's phase boundary.
+- Update the active delivery plan with completed tasks, validation results, and blockers. Do not create a competing design plan or execution checklist in the product spec. If delivery planning is requested without an active plan, use `stack-spec-workflow` to create the delivery spec and plan.
+- Link the delivery spec to its product specs and prototypes. Keep product behavior in the product spec and delivery scope and acceptance in the delivery spec; reference rather than duplicate requirements. Product-flow numbering is independent of delivery IDs.
+- Surface conflicts with the delivery spec or referenced approved product requirements before affected work. Follow the delivery workflow's change rules when a requested product change affects locked delivery scope or constraints.
+- At an intermediate delivery-phase review, report completed artifacts and deferred steps. Complete the remaining documentation and validation before claiming the entire prototype deliverable is finished.
+
+When used alone, follow this skill's full procedure without creating delivery specs or execution plans unless requested.
+
 ## Agent compatibility
 
 This workflow is intended to be reusable across agent runtimes, including Claude, Codex, Gemini, or any other agent that can read instructions and create files.
@@ -255,7 +270,7 @@ One-sentence purpose of this flow.
 - <specific question, or None>
 ```
 
-Record material design assumptions and any persistence/reset behavior briefly. Do not add backend endpoints, proposed domain types, or implementation task lists. If implementation planning is requested, use separate `docs/specs/plans/<id>_<slug>.plan.md` files and spec references following `stack-spec-workflow`, or the repository's established equivalent. This skill does not require a plan file merely to produce a prototype.
+Record material design assumptions and any persistence/reset behavior briefly. Do not add backend endpoints, proposed domain types, or implementation task lists. For requested delivery planning, follow the integration rules above: use a separate delivery spec in `docs/specs/` and its plan in `docs/specs/plans/`, or the established equivalent. The product spec remains a design deliverable and contains no execution state.
 
 ---
 
@@ -321,7 +336,7 @@ Fix detected issues and rerun affected checks. If tooling is unavailable or a ch
 
 ## Phase 6 — Present and iterate
 
-After the prototype, companion requirements, design-system updates, and validation are complete:
+For a standalone run or the final design-delivery phase, present the completed work after the prototype, companion requirements, design-system updates, and validation are complete. For intermediate delivery phases, use the active delivery plan's review boundary and report remaining work explicitly:
 
 1. Link the launcher or single-screen entry point, the product-spec index, and the relevant flow specifications.
 2. Summarize screens, states, fictional data, and any persistence/reset behavior.

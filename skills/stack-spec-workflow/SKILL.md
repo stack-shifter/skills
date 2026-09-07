@@ -1,16 +1,22 @@
 ---
 name: stack-spec-workflow
-description: Drives a spec-first workflow where the spec is the locked source of truth and mutable plan files track phased implementation. Use whenever the user wants a feature spec drafted with explicit clarification questions, locked requirements in `docs/specs`, a persistent phased implementation plan, or a "do the next chunk then check in" implementation loop.
+description: Organize and deliver ideas through locked delivery specs and mutable phased plans, for features, fixes, refactors, infrastructure, or documentation. Use whenever the user wants a feature spec drafted with explicit clarification questions, locked requirements in `docs/specs`, a persistent phased implementation plan, or a "do the next chunk then check in" implementation loop.
 ---
 
 # Spec Workflow Skill
 
 ## Purpose
 
-Keep one stable spec per feature as the source of truth. Get user approval before starting implementation. Check in after each logical chunk of work before continuing.
+Keep one stable delivery spec per initiative as the source of truth for its scope, deliverables, and acceptance criteria. Apply the workflow to software, infrastructure, design, or documentation work. Get user approval before executing the work and check in at each approved phase boundary. In this skill, implementation includes creating and revising design or documentation artifacts.
 
-- **Spec = what** — locked requirements, stable across the entire feature
+- **Delivery spec = what to deliver** — locked scope, deliverables, constraints, and acceptance criteria for the initiative
 - **Plan = how** — persistent phases, tasks, validation results, and blockers derived from the spec
+
+## Working with other skills
+
+Other skills may execute tasks within the active delivery plan. Keep progress, validation, and blockers in that plan; do not create competing execution plans or additional approval gates. Follow the approved phase boundaries and report deferred work before claiming completion.
+
+Keep delivery specs and plans in the established delivery-workflow location. Reference supporting requirements and deliverables without duplicating them or treating their folders as the delivery-workflow location. Surface conflicts with referenced requirements before affected work, and use the Spec Change Escalation rule when locked scope or constraints must change.
 
 ## When to Use
 
@@ -199,7 +205,7 @@ When a spec already exists, treat it as the source of truth and run the holistic
 
 ### Stage 2: Generate the phased plan
 
-Once the spec is locked, create or revise its referenced plan file. Keep execution state in the plan so work can resume across sessions. Read the spec and current code before defining phases.
+Once the spec is locked, create or revise its referenced plan file. Keep execution state in the plan so work can resume across sessions. Read the spec and current code or design/documentation artifacts before defining phases.
 
 Break the work into ordered, reviewable phases. For each phase, define:
 
@@ -212,7 +218,7 @@ Run the phase executability check against this plan. Each phase must be verifiab
 
 Present the phase outline and identify the next phase for user approval. Treat an explicit instruction to execute a presented phase as approval; do not ask again for the same work.
 
-When resuming, read the spec and active plan and compare them with the current code. Reconcile completed work and remaining tasks in the plan without changing requirements. Select the earliest phase whose tasks, validation, or gate remain incomplete, even if all its task checkboxes are checked. If the plan is missing, generate it before implementing.
+When resuming, read the spec and active plan and compare them with the current code and relevant deliverable artifacts. Reconcile completed work and remaining tasks in the plan without changing requirements. Select the earliest phase whose tasks, validation, or gate remain incomplete, even if all its task checkboxes are checked. If the plan is missing, generate it before implementing.
 
 ### Stage 3: Implement and review one phase
 
