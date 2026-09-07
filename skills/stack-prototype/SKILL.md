@@ -1,5 +1,5 @@
 ---
-name: prototype
+name: stack-prototype
 description: Build a new UI prototype from requirements. Generates self-contained HTML file(s) plus a product spec doc. Frontend design only — no backend logic. Use when the user wants to design, mock, or wireframe a screen or flow.
 ---
 
@@ -23,11 +23,11 @@ If the host agent does not support native skills, treat this file as an executio
 Possible invocation styles:
 
 ```
-/prototype [inline requirements or screen description]
+/stack-prototype [inline requirements or screen description]
 ```
 
 Or equivalent plain-language requests such as:
-- "Use the prototype skill for this screen"
+- "Use the stack-prototype skill for this screen"
 - "Generate a prototype for this flow"
 - "Create HTML wireframes and a companion spec from these requirements"
 

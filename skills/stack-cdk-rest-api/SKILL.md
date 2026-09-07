@@ -1,5 +1,5 @@
 ---
-name: cdk-rest-api
+name: stack-cdk-rest-api
 description: Designs and implements REST APIs on AWS using the target repository's CDK patterns first. Use this whenever the user wants to add or modify API Gateway REST endpoints, Lambda handlers, Cognito auth, middleware, request models, reusable CDK constructs, runtime composition, scheduled jobs, or repository-backed CRUD routes, even if they only ask for "an endpoint", "a handler", "some CDK wiring", or "an API route".
 ---
 

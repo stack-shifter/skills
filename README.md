@@ -8,13 +8,13 @@
   - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
   - [Skills in This Repository](#skills-in-this-repository)
-    - [`branch-risk-review`](#branch-risk-review)
-    - [`spec-workflow`](#spec-workflow)
-    - [`dynamodb-design`](#dynamodb-design)
-    - [`cdk-rest-api`](#cdk-rest-api)
-    - [`expressjs-rest-api`](#expressjs-rest-api)
-    - [`prototype`](#prototype)
-    - [`repo-templatizer`](#repo-templatizer)
+    - [`stack-branch-risk-review`](#stack-branch-risk-review)
+    - [`stack-spec-workflow`](#stack-spec-workflow)
+    - [`stack-dynamodb-design`](#stack-dynamodb-design)
+    - [`stack-cdk-rest-api`](#stack-cdk-rest-api)
+    - [`stack-expressjs-rest-api`](#stack-expressjs-rest-api)
+    - [`stack-prototype`](#stack-prototype)
+    - [`stack-repo-templatizer`](#stack-repo-templatizer)
   - [What Are Skills?](#what-are-skills)
   - [Building Custom Skills](#building-custom-skills)
     - [Skill Structure](#skill-structure)
@@ -36,60 +36,60 @@ Skills let you extend AI agents with procedural knowledge: teach them your workf
 
 A brief description of every skill available in this library, along with its individual install command.
 
-### `branch-risk-review`
+### `stack-branch-risk-review`
 
 Reviews the current branch against `main` for breaking changes and merge risk.
 
 ```bash
-npx skills add stack-shifter/skills --skill branch-risk-review
+npx skills add stack-shifter/skills --skill stack-branch-risk-review
 ```
 
-### `spec-workflow`
+### `stack-spec-workflow`
 
 Runs a locked-spec workflow for feature delivery, with clarification-first drafting and phase-by-phase implementation check-ins.
 
 ```bash
-npx skills add stack-shifter/skills --skill spec-workflow
+npx skills add stack-shifter/skills --skill stack-spec-workflow
 ```
 
-### `dynamodb-design`
+### `stack-dynamodb-design`
 
 Designs DynamoDB schemas from access patterns first, including single-table vs multi-table choices, key design, GSIs, relationships, pagination, uniqueness, TTL, and schema reference documentation.
 
 ```bash
-npx skills add stack-shifter/skills --skill dynamodb-design
+npx skills add stack-shifter/skills --skill stack-dynamodb-design
 ```
 
-### `cdk-rest-api`
+### `stack-cdk-rest-api`
 
 Builds CDK-based REST APIs with Lambda using repo patterns first, including route composition, auth, middleware, runtime wiring, schedules, and repository-backed persistence boundaries.
 
 ```bash
-npx skills add stack-shifter/skills --skill cdk-rest-api
+npx skills add stack-shifter/skills --skill stack-cdk-rest-api
 ```
 
-### `expressjs-rest-api`
+### `stack-expressjs-rest-api`
 
 Builds Express 5 REST APIs with TypeScript using repo patterns first.
 
 ```bash
-npx skills add stack-shifter/skills --skill expressjs-rest-api
+npx skills add stack-shifter/skills --skill stack-expressjs-rest-api
 ```
 
-### `prototype`
+### `stack-prototype`
 
 Builds frontend-only UI prototypes from requirements, generating self-contained HTML screen or flow files plus a companion product spec document.
 
 ```bash
-npx skills add stack-shifter/skills --skill prototype
+npx skills add stack-shifter/skills --skill stack-prototype
 ```
 
-### `repo-templatizer`
+### `stack-repo-templatizer`
 
 Converts an existing repository into a reusable GitHub template while preserving reusable structure and infrastructure patterns.
 
 ```bash
-npx skills add stack-shifter/skills --skill repo-templatizer
+npx skills add stack-shifter/skills --skill stack-repo-templatizer
 ```
 
 ---
@@ -117,7 +117,7 @@ Each skill lives in its own folder and requires a single `SKILL.md` file:
 
 ```
 skills/
-└── my-skill/
+└── stack-my-skill/
     └── SKILL.md
 ```
 
@@ -125,7 +125,7 @@ The `SKILL.md` file uses YAML frontmatter followed by Markdown instructions:
 
 ```markdown
 ---
-name: my-skill-name
+name: stack-my-skill
 description: A clear description of what this skill does and when to use it
 ---
 
@@ -161,17 +161,17 @@ Instructions that the agent will follow when this skill is active.
 
 **1. Name your skill**
 
-Choose a lowercase, hyphen-separated name that describes the task, for example `release-checklist` or `aws-cost-audit`. This name becomes both the folder name and the `name` field in frontmatter.
+Choose a lowercase, hyphen-separated name prefixed with `stack-`, for example `stack-release-checklist` or `stack-aws-cost-audit`. This name becomes both the folder name and the `name` field in frontmatter.
 
 **2. Scaffold the skill**
 
 Use the `skills` CLI to generate the template automatically:
 
 ```bash
-npx skills init my-skill
+npx skills init stack-my-skill
 ```
 
-This creates `my-skill/SKILL.md` pre-populated with the structure shown in [Skill Structure](#skill-structure).
+This creates `stack-my-skill/SKILL.md` pre-populated with the structure shown in [Skill Structure](#skill-structure).
 
 **3. Fill in the frontmatter**
 
@@ -188,7 +188,7 @@ Before committing, confirm the folder contains a valid `SKILL.md` with both `nam
 Finally, add an entry to the [Skills in This Repository](#skills-in-this-repository) section with a short description and the per-skill install command:
 
 ```bash
-npx skills add stack-shifter/skills --skill my-skill
+npx skills add stack-shifter/skills --skill stack-my-skill
 ```
 
 ---

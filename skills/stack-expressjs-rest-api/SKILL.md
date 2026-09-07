@@ -1,5 +1,5 @@
 ---
-name: expressjs-rest-api
+name: stack-expressjs-rest-api
 description: Designs and implements REST APIs using Express 5 with TypeScript, following the target repository's patterns first. Use this whenever the user wants to add or modify Express routes, controllers, middleware, validation, authentication, repositories, services, or runtime composition — even if they only ask for "a route", "a controller", "a handler", "validation", or "some middleware".
 ---
 

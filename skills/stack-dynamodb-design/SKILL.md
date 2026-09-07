@@ -1,9 +1,9 @@
 ---
-name: dynamodb-design
+name: stack-dynamodb-design
 description: Designs DynamoDB data models from access patterns first. Use this whenever the user needs help modeling a DynamoDB schema, choosing between single-table and multi-table design, defining partition and sort keys, GSIs, item collections, one-to-many or many-to-many relationships, filtering, sorting, uniqueness, TTL, pagination, or deciding whether DynamoDB is even the right fit for the workload.
 ---
 
-# dynamodb-design
+# stack-dynamodb-design
 
 Use this skill to produce a DynamoDB design, not just a table definition.
 

@@ -18,7 +18,7 @@ Prefer code that is:
 
 ## Project Structure & Module Organization
 
-This repository is a lightweight library of agent skills. Today, the root contains project documentation in `README.md` and `LICENSE`; contributed skills should be added as their own top-level directories, each with a `SKILL.md` entry point. Use a layout like `my-skill/SKILL.md`, and keep any supporting assets local to that skill directory so the skill stays portable.
+This repository is a lightweight library of agent skills. Today, the root contains project documentation in `README.md` and `LICENSE`; contributed skills should be added as their own directories under `skills/`, each with a `SKILL.md` entry point. Use a layout like `skills/stack-my-skill/SKILL.md`, and keep any supporting assets local to that skill directory so the skill stays portable.
 
 ## Build, Test, and Development Commands
 
@@ -32,7 +32,7 @@ If you add scripts later, document them in `README.md` and keep command examples
 
 ## Coding Style & Naming Conventions
 
-Write `SKILL.md` files in clear Markdown with YAML frontmatter. Use lowercase, hyphen-separated skill names in frontmatter and directory names, for example `release-checklist` or `aws-cost-audit`. Keep prose direct, imperative, and task-oriented. Prefer short sections such as `## When to Use`, `## Steps`, and `## Examples`. Use 2-space indentation in YAML and fenced code blocks for shell examples.
+Write `SKILL.md` files in clear Markdown with YAML frontmatter. Use lowercase, hyphen-separated skill names prefixed with `stack-` in both frontmatter and directory names, for example `stack-release-checklist` or `stack-aws-cost-audit`. Keep prose direct, imperative, and task-oriented. Prefer short sections such as `## When to Use`, `## Steps`, and `## Examples`. Use 2-space indentation in YAML and fenced code blocks for shell examples.
 
 ## Testing Guidelines
 
@@ -44,4 +44,4 @@ There is no automated test suite yet, so test contributions by installing the re
 
 ## Commit & Pull Request Guidelines
 
-Git history is minimal, so use short commit subjects prefixed by the change type, such as `feat: add terraform-audit skill`, `fix: correct install command`, `refactor: simplify skill instructions`, or `bug: resolve broken example path`. Keep each subject concise and scoped to one change. Pull requests should include a short summary, the reason for the skill or edit, and sample usage when behavior is not obvious. Include screenshots only when the change affects rendered documentation.
+Git history is minimal, so use short commit subjects prefixed by the change type, such as `feat: add stack-terraform-audit skill`, `fix: correct install command`, `refactor: simplify skill instructions`, or `bug: resolve broken example path`. Keep each subject concise and scoped to one change. Pull requests should include a short summary, the reason for the skill or edit, and sample usage when behavior is not obvious. Include screenshots only when the change affects rendered documentation.

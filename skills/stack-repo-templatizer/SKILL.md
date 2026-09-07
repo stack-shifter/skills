@@ -1,5 +1,5 @@
 ---
-name: repo-templatizer
+name: stack-repo-templatizer
 description: Prepares an existing repository to become a reusable GitHub template. Use this whenever the user wants to genericize a repo, scrub project-specific domain logic, preserve reusable structure, turn a real project into starter boilerplate, or make a codebase safe to publish as a template. This includes requests to keep `src/` and `test/` layouts, retain reusable services, rewrite the README into placeholders, or preserve CDK `constructs/` code while removing app-specific implementation. Also use this when the user wants to check for or remove branding, org references, company names, badges, account IDs, or project-specific identifiers without restructuring the codebase — this activates Branding Audit Mode.
 ---
 

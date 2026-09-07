@@ -1,5 +1,5 @@
 ---
-name: branch-risk-review
+name: stack-branch-risk-review
 description: Compares the current branch to main to identify breaking changes, introduced bugs, security regressions, and operational or performance risks. Use when reviewing PRs, preparing releases, auditing branch readiness, or when asked “what changed vs main?”, “is this safe to merge?”, “what are the risks in this branch?”, or similar questions about branch impact versus a base branch.
 ---
 

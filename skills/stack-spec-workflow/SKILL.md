@@ -1,5 +1,5 @@
 ---
-name: spec-workflow
+name: stack-spec-workflow
 description: Drives a spec-first workflow where the spec is the locked source of truth and mutable plan files track phased implementation. Use whenever the user wants a feature spec drafted with explicit clarification questions, locked requirements in `docs/specs`, a persistent phased implementation plan, or a "do the next chunk then check in" implementation loop.
 ---
 
