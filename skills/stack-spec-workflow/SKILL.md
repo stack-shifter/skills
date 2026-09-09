@@ -175,6 +175,16 @@ Keep the plan execution-oriented. Refine ambiguous or oversized tasks before cod
 
 If code has drifted from the plan but still matches the spec, update the plan to reflect reality before continuing. Do not hide requirement changes inside plan refinements. Reconcile affected plans whenever an authorized spec revision occurs.
 
+## Keep changes small and measured
+
+Plan each phase around one clear outcome that is easy to explain and review. Small tasks alone are not enough: their combined change must also be understandable.
+
+- Preserve existing patterns. Keep unrelated cleanup, restructuring, and new abstractions out of the phase.
+- Separate mechanical refactoring from behavior changes when practical so each diff has a clear purpose.
+- Split a phase when its combined diff becomes difficult to understand. Update the plan before expanding the work; keep completed task IDs and validation evidence.
+- Keep each phase working and independently verifiable using earlier completed work. Keep tightly coupled changes together when splitting them would leave broken code or an unverifiable result; do not use arbitrary file or line limits.
+- When a larger change is necessary, explain why it must stay together and how it will be validated before undertaking it. Use the existing phase approval and scope-change rules rather than adding another approval gate.
+
 ## Holistic Validation Pass
 
 Run this before drafting, revising, or executing a spec or plan:
@@ -183,7 +193,7 @@ Run this before drafting, revising, or executing a spec or plan:
 
 2. **Scope consistency** — check for contradictions between Overview, Scope, Requirements, and Acceptance Criteria. If an acceptance criterion requires changing an out-of-scope layer, narrow the criterion or bring the layer into scope.
 
-3. **Phase executability** — verify each planned phase can be validated using only work from that phase and earlier. Reorder phases when later-phase work is a prerequisite.
+3. **Phase executability** — verify each planned phase can be validated using only work from that phase and earlier. Reorder phases when later-phase work is a prerequisite. Check that each phase has one clear outcome and an understandable combined diff; split oversized phases using the small-change guidance above.
 
 4. **Explicit ownership** — name every caller, consumer, adapter, handler, test, doc, and config that must change. Do not leave high-risk coupling as implied cleanup.
 
@@ -227,7 +237,7 @@ Before starting implementation, check the current git branch. If on `main` or `m
 Use the locked spec as requirements and execute the approved phase:
 
 1. Name the spec, active plan, phase, and task IDs. Implement unchecked tasks in order, keeping changes scoped to the phase. Mark each task `[x]` in the plan immediately after its implementation work is complete.
-2. Run the planned validation and required repository checks. Broaden testing when shared behavior or regression risk warrants it; a full suite is not required for every phase unless repository instructions require it.
+2. Review the combined diff for the phase against its intended outcome. Remove unrelated edits and split remaining oversized work in the plan before continuing. Run the planned validation and required repository checks. Broaden testing when shared behavior or regression risk warrants it; a full suite is not required for every phase unless repository instructions require it.
 3. Record validation commands and results and the gate status in the plan. A phase is complete only when its tasks are done, validation passes, and the gate is satisfied.
 4. Report completed task IDs, files changed, checks and results, gate status, any spec edits, and remaining blockers. Confirm that the plan is updated.
 5. Stop for feedback or explicit instruction to start the next phase. Address feedback within the current phase and rerun affected checks before presenting the updated review.
