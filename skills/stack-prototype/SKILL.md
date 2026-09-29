@@ -1,6 +1,6 @@
 ---
 name: stack-prototype
-description: Build a new UI prototype from requirements. Generates portable HTML journeys, reviewable states, and concise companion requirements. Frontend design only — no backend logic. Use when the user wants to design, mock, or wireframe a screen or flow.
+description: Build or refine a UI prototype from requirements. Generates portable HTML journeys, reviewable states, and concise companion requirements using a shared UI baseline and component mappings for later framework conversion. Frontend design only — no backend logic. Use when the user wants to design, mock, wireframe, or update a prototype screen or flow.
 ---
 
 # Prototype Skill
@@ -61,15 +61,17 @@ Gather requirements from the user inline or via the questions above. Once you ha
 
 Before writing any code:
 - Look for existing prototypes in the project to use as structural and visual reference
-- Read `docs/prototypes/design-system.md` (or an equivalent design system file in the project) if it exists — it is the authoritative record of shared CSS tokens and component patterns for this project
-- If no existing design system or prototypes are found, establish sensible defaults and document them when creating `design-system.md` after generation
+- Read [the UI baseline and framework mappings](references/ui-baseline.md) before generating or modifying any prototype. Use its neutral sizing and layout conventions even when a future framework is known.
+- Read `docs/prototypes/design-system.md` (or an equivalent design system file in the project) if it exists — it is the authoritative record of brand, shared tokens, component patterns, and documented exceptions. Normalize inherited dimensions as described below; an old arbitrary value is not automatically an exception
+- Choose the baseline tokens, component roles, sizes, variants, and responsive spans before coding. If no design system exists, use the bundled baseline and record those choices in `design-system.md` after generation
+- When editing an existing prototype, identify its flow and canonical shell. Normalize the edited flow and all pages sharing that shell together, including their shared controls and layout tokens. Preserve brand, content, behavior, routes, filenames, and explicit user requirements. Leave unrelated flows untouched; scope any shared design-system updates so their conventions are not silently changed. Record justified exceptions and report every affected page
 - Detect any repository-specific instructions (`AGENTS.md`, workspace docs, contribution guides, route conventions) and follow them where they affect naming, output location, or UI terminology
 
 When requirements are incomplete, use this decision order:
 1. Explicit user instructions
-2. Project-level conventions already present in the repo
-3. Existing prototype patterns in the repo
-4. Sensible defaults documented in the summary and companion spec
+2. Explicit project requirements and conventions for brand, behavior, and artifact organization (normalize inherited ad hoc dimensions)
+3. The shared UI baseline for dimensions and layout, with documented project exceptions
+4. Existing prototype patterns for remaining visual decisions
 
 ---
 
@@ -103,7 +105,7 @@ Each `.html` file must be:
 - **Portable** — all CSS in a `<style>` block and all JS inline; bundled relative images/icons are allowed. No external stylesheets, CDN links, remote fonts, imports, or other network dependencies
 - **Vanilla JS only** — no frameworks
 - **Fully styled with representative dummy data** in every section — no TODOs or placeholders
-- **Responsive** — define mobile breakpoints appropriate for the design (common: `640px`, `860px`)
+- **Responsive** — use the baseline mobile-first layout thresholds when needed; document spans, stacking, and any justified breakpoint exceptions
 - **Accessible** — prefer semantic HTML, persistent labels, visible keyboard focus, and appropriate accessible names and states. Dialogs and drawers must manage focus and support keyboard dismissal
 
 ### File location and naming
@@ -136,64 +138,11 @@ Always add a comment at the top of each HTML file indicating the target route:
 
 ## Design system
 
-The design system for a prototype should come from one of these sources, in priority order:
+Use [the UI baseline and framework mappings](references/ui-baseline.md) as the single source for dimensional defaults, semantic component classes, and conversion guidance. These are neutral prototype conventions, not the exact defaults of Bootstrap, Material, or shadcn.
 
-1. **Explicit user preferences** — apply the requested visual direction
-2. **Existing `design-system.md` and project conventions** — preserve the established brand and components
-3. **Existing prototype files** — extract patterns when no authoritative design record exists
-4. **Sensible generic defaults** — when nothing exists, use the pattern below as a starting point and adapt it to fit the project's context
+Preserve explicit user requirements and project brand choices. Normalize inherited spacing, typography, control sizes, radii, and layouts onto the baseline when editing; record any justified exceptions with their reason and scope. Keep repeated patterns in reusable classes rather than page-specific overrides. Reuse the same inline shared CSS across related pages so the portable files remain consistent.
 
-### Generic defaults (adapt to fit the project)
-
-These are starting-point conventions. Adjust colors, fonts, and component shapes to match the product's brand and tone.
-
-**CSS custom properties** — always declare in `:root`:
-```css
-:root {
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
-  --border: #e5e7eb;
-  --brand: #2563eb;        /* adjust to project brand color */
-  --surface: #ffffff;
-  --bg: #f9fafb;
-}
-```
-
-**Body:** `background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--text-primary);`
-
-**Status indicators** — adapt label names and colors to the domain:
-```css
-.pill-active   { background: #d1fae5; color: #065f46; }
-.pill-pending  { background: #fef9c3; color: #92400e; }
-.pill-review   { background: #ede9fe; color: #5b21b6; }
-.pill-inactive { background: #f3f4f6; color: #6b7280; }
-/* pill base: font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; text-transform:uppercase; */
-```
-
-**Typography scale:**
-| Use | Size | Weight |
-|-----|------|--------|
-| Page title | `22–24px` | `800` |
-| Section heading | `15–16px` | `700` |
-| Body / row text | `13–14px` | `400–500` |
-| Label / meta | `11–12px` | `400–600` |
-
-**Spacing:** multiples of 4px — common values: `4 8 12 16 20 24 28 32px`.
-
-**Border radius:** cards/modals `10–12px`, buttons `8px`, pills `20px`, inputs `8px`.
-
-**Buttons:**
-```css
-.btn     { padding: 8px 16px; font-size: 13px; font-weight: 600; border-radius: 8px; cursor: pointer; }
-.btn-sm  { padding: 6px 12px; font-size: 12px; }
-.btn-xs  { padding: 4px 10px; font-size: 11px; }
-.btn-primary   { background: var(--brand); color: #fff; border: none; }
-.btn-secondary { background: var(--surface); color: var(--text-primary); border: 1px solid var(--border); }
-```
-
-**Cards:** `background: var(--surface); border: 1px solid var(--border); border-radius: 10px;`
-
-**Modals:** fixed overlay `rgba(0,0,0,0.5)`, centered dialog `max-width: 760px`, scrollable body, close button top-right.
+Before coding, identify each component's role, variant, and size and each layout's container, spans, and responsive behavior. Record these decisions in the authoritative design system during Phase 4. Framework mappings belong in this developer handoff, not in the visible product interface.
 
 ### Vanilla JS interactivity
 
@@ -208,17 +157,9 @@ document.addEventListener('click', () => {
 });
 ```
 
-### Responsive breakpoints
+### Responsive layout
 
-Define breakpoints appropriate to the design. When using the generic defaults:
-```css
-@media (max-width: 860px) {
-  /* collapse secondary columns */
-}
-@media (max-width: 640px) {
-  /* stack layout, simplify nav, convert tables to cards */
-}
-```
+Use the baseline container and optional 12-column grid. Add the 768px and 1024px thresholds only when the content needs a layout change; use the same conditions across the flow. Document column spans and stacking behavior rather than relying on a screenshot to communicate layout intent. CSS custom properties cannot be used directly in media-query conditions, so keep literal query thresholds synchronized with the design-system record.
 
 ---
 
@@ -278,8 +219,8 @@ Record material design assumptions and any persistence/reset behavior briefly. D
 
 Update the authoritative design-system document discovered in Phase 1. If none exists, create `design-system.md` in the prototype output directory. Avoid creating a competing record.
 
-- **If it does not exist:** create it by extracting the complete set of CSS tokens, component class names, color palette, breakpoints, and JS patterns from the generated prototype(s).
-- **If it exists:** compare the new prototype's styles against it. Update the file if any new tokens, patterns, or component classes were introduced.
+- **If it does not exist:** create it by extracting the complete set of CSS tokens, component roles/classes, size and variant mappings, color palette, responsive spans/breakpoints, exceptions, and JS patterns from the generated prototype(s).
+- **If it exists:** compare the new prototype's styles against it. Update normalized tokens, patterns, component mappings, and exceptions, including affected shell pages. Do not leave obsolete dimensional guidance alongside the new baseline.
 
 This file is the authoritative record of shared design conventions. Keep it current so any agent can generate consistent prototypes without reading every HTML file.
 
@@ -293,7 +234,7 @@ Last updated: YYYY-MM-DD
 (reference page, shared elements, and permitted page differences when applicable)
 
 ## CSS Custom Properties
-(list all :root variables with hex values and their semantic meaning)
+(list all :root variables with values, units where applicable, and semantic meaning; include colors, spacing, sizes, typography, radii, and container width)
 
 ## Color Palette
 (document all colors used, named by semantic role)
@@ -317,8 +258,15 @@ Last updated: YYYY-MM-DD
 ### Tables / Lists
 (add sections as new components are introduced)
 
-## Responsive Breakpoints
-(breakpoint values and what changes at each)
+## Layout and Responsive Breakpoints
+(container width/padding, gutters, column spans at each threshold, and stacking behavior)
+
+## Framework Conversion
+(component role + prototype class + size/variant; intended Bootstrap, Material UI, and shadcn equivalents for components used; link the baseline mapping reference only if delivered with the project, otherwise record the relevant mappings here)
+(native destination defaults take precedence over pixel matching; verify installed versions, theme, and actual local components)
+
+## Exceptions and Normalization
+(justified deviations, their reason and scope; normalized flow and shared-shell pages; None when no exceptions exist)
 
 ## Vanilla JS Patterns
 (standard toggle patterns, outside-click handlers, etc.)

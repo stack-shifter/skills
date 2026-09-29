@@ -27,6 +27,15 @@ Apply relevant checks to the requested journey. Mark each as passed, failed, not
 - Compare the canonical shell across related screens at the same widths: header, navigation, control sizes, typography, colors, spacing, and footer behavior.
 - Confirm only documented differences such as active navigation or content widths vary. Check for page-specific CSS overriding shared shell rules.
 
+## UI baseline and conversion handoff
+
+- Read the bundled UI baseline before generation. Verify spacing, typography, radii, control sizes, and container widths use its tokens rather than unexplained one-off values. Explicit user requirements and justified exceptions are recorded with their scope.
+- Buttons and single-line fields use named small/default/large roles and consistent minimum heights. Icon controls have matching square dimensions, accessible names, and usable touch targets. Long labels and enlarged text can grow without clipping.
+- Repeated components use semantic classes with clear roles, variants, and sizes; related pages share the same rules. Borders, artwork, and documented special-purpose dimensions need not use spacing tokens.
+- The design-system record includes token values/units, component mappings, container padding, grid gutters/spans, and stacking behavior at each used threshold. Literal CSS media queries match the recorded thresholds.
+- Conversion guidance maps components actually used to Bootstrap, Material UI, and shadcn/Tailwind, flags missing size equivalents, and favors native destination defaults over pixel matching. It does not imply equal breakpoint names mean equal widths or invent unsupported component props.
+- When editing, normalize the whole affected flow and pages sharing its canonical shell. Preserve brand, behavior, routes, filenames, and explicit user requirements; verify unrelated flows remain unchanged. Report normalized pages and justified exceptions.
+
 ## Accessibility and runtime
 
 - Navigate with the keyboard: verify logical order, visible focus, semantic controls, persistent form labels, and accessible names and states.

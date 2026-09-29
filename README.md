@@ -89,7 +89,7 @@ npx skills add stack-shifter/skills --skill stack-expressjs-rest-api
 
 ### `stack-prototype`
 
-Builds frontend-only UI prototypes from requirements, generating self-contained HTML screen or flow files plus a companion product spec document.
+Builds frontend-only UI prototypes from requirements, generating self-contained HTML screen or flow files plus a companion product spec document. Uses a shared spacing, control-size, and layout baseline with component mappings for later Bootstrap, Material UI, or shadcn conversion. Normalizes edited flows and their shared application shells.
 
 ```bash
 npx skills add stack-shifter/skills --skill stack-prototype
