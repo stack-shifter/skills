@@ -1,10 +1,11 @@
 # Services Pattern
 
-Use this reference when the repository needs reusable service classes for logging, storage, email, or mapping.
+Use this reference when the repository needs services for domain workflows, external integrations, or repeated mapping.
 
 ## Goal
 
-Put external integrations and repeated translation logic into small classes that controllers can reuse.
+Keep business workflows and external integrations outside controllers, with persistence delegated to repositories. Reuse the project's
+service style rather than requiring classes or separate mappers for trivial operations.
 
 ## Recommended Services
 
@@ -17,18 +18,18 @@ Put external integrations and repeated translation logic into small classes that
 
 ```ts
 export class LoggerService {
-    info(message: string): void {
-        console.log(`[API INFO] ${message}`);
-    }
+	info(message: string): void {
+		console.log(`[API INFO] ${message}`);
+	}
 
-    warn(message: string): void {
-        console.log(`[API WARN] ${message}`);
-    }
+	warn(message: string): void {
+		console.log(`[API WARN] ${message}`);
+	}
 
-    error(message: string, error?: Error): void {
-        console.log(`[API ERROR] ${message}`);
-        if (error) console.error(error);
-    }
+	error(message: string, error?: Error): void {
+		console.log(`[API ERROR] ${message}`);
+		if (error) console.error(error);
+	}
 }
 ```
 
@@ -38,3 +39,9 @@ export class LoggerService {
 - Keep service APIs task-oriented, for example `generateUploadUrl`, `sendMessage`, or `entityToResponseDto`.
 - Use mappers for repeatable transformation rules, not for one-off controller reshaping.
 - Do not embed response formatting in services unless the repository already follows that pattern.
+- Name public operations descriptively, such as `findAssociationOptions`, instead of ambiguous names like `options`. Follow existing CRUD
+  vocabulary rather than enforcing these illustrative names.
+- Use named result models for public object return signatures. Map persistence rows explicitly to the public contract; do not accidentally
+  expose storage-only fields.
+- Await into descriptive locals before response parsing or return construction. For example, fetch `items`, parse them into
+  `validatedItems`, then return the named result. Keep awaits within existing error-handling boundaries.

@@ -1,16 +1,19 @@
 # Persistence Boundary Pattern
 
-Use this reference when the API needs persistence access and the repository needs a coherent boundary between business logic and storage logic.
+Use this reference when the API needs persistence access and the repository needs a coherent boundary between business logic and storage
+logic.
 
 ## Goal
 
-Keep controllers and services unaware of datastore mechanics by putting persistence access behind repositories and aggregating repositories behind one shared context when needed.
+Keep controllers and services unaware of datastore mechanics by putting persistence access behind repositories and aggregating repositories
+behind one shared context when needed.
 
 ## Rules
 
 - Controllers and services should ask for domain operations, not construct datastore requests.
 - Repositories own query construction, key construction, transactions, and persistence-specific error handling.
-- When multiple repositories are needed together, expose them through one aggregate context such as `DatabaseContext`, `DataContext`, or `Context`.
+- When multiple repositories are needed together, expose them through one aggregate context such as `DatabaseContext`, `DataContext`, or
+  `Context`.
 - Handlers should depend on controllers or services, not on datastore clients directly.
 
 ## Portable Shape
@@ -28,27 +31,27 @@ src/
 ## Baseline Context
 
 ```ts
-import type { RepositoryDependencies } from "./dependencies";
-import { ProjectRepository } from "./repositories/project.repository";
-import { UserRepository } from "./repositories/user.repository";
+import type { RepositoryDependencies } from './dependencies';
+import { ProjectRepository } from './repositories/project.repository';
+import { UserRepository } from './repositories/user.repository';
 
 export class Context {
-    readonly projects: ProjectRepository;
-    readonly users: UserRepository;
+	readonly projects: ProjectRepository;
+	readonly users: UserRepository;
 
-    constructor(db: RepositoryDependencies) {
-        this.projects = new ProjectRepository(db);
-        this.users = new UserRepository(db);
-    }
+	constructor(db: RepositoryDependencies) {
+		this.projects = new ProjectRepository(db);
+		this.users = new UserRepository(db);
+	}
 }
 ```
 
 ## Baseline Composition
 
 ```ts
-import { Context } from "./data/context";
-import { createRepositoryDependencies } from "./data/dependencies";
-import { ProjectService } from "./services/project.service";
+import { Context } from './data/context';
+import { createRepositoryDependencies } from './data/dependencies';
+import { ProjectService } from './services/project.service';
 
 const db = createRepositoryDependencies();
 
@@ -63,5 +66,13 @@ export const projectService = new ProjectService(context.projects);
 - Repository methods should be named after domain operations or access patterns, not after raw persistence APIs.
 - Keep mapping between persistence objects and domain objects inside repositories or dedicated mappers, not in controllers.
 - Do not let controllers or services construct datastore-specific commands, key expressions, or raw persistence requests.
+- Use transactions for atomic datastore changes. Add narrowly scoped locks only when required to protect a concrete invariant, such as
+  claiming one pending attachment once or maintaining attachment count during record updates/deletion. Explain the invariant and never hold
+  locks across S3 or other network calls.
+- Do not introduce request replay, idempotency tables, or a transactional outbox merely because retries are possible. Use them when the
+  approved contract requires their guarantees, and document concurrency limits of simpler application checks.
 
-The repository dependencies, repositories, and service above are application-defined modules with constructors matching the example. Preserve an existing direct-export composition structure when present; the context is the baseline for a new grouped repository structure, not a required migration. For operations spanning storage and external services, define partial-failure and retry behavior rather than assuming atomicity.
+The repository dependencies, repositories, and service above are application-defined modules with constructors matching the example.
+Preserve an existing direct-export composition structure when present; the context is the baseline for a new grouped repository structure,
+not a required migration. For operations spanning storage and external services, define partial-failure and retry behavior rather than
+assuming atomicity.

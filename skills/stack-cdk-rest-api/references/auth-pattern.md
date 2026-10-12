@@ -1,6 +1,7 @@
 # Auth Pattern
 
-Use this reference when a change affects protected routes, Cognito scopes, in-handler authorization behavior, or the exceptional case where JWT verification happens inside Lambda.
+Use this reference when a change affects protected routes, Cognito scopes, in-handler authorization behavior, or the exceptional case where
+JWT verification happens inside Lambda.
 
 ## Goal
 
@@ -15,15 +16,16 @@ A strong baseline protects routes through:
 
 ## Storm Route Example
 
-Use the Storm API instance and stack helpers from `rest-api-pattern.md`. Its constructor defaults already include the Cognito authorizer and shared environment.
+Use the Storm API instance and stack helpers from `rest-api-pattern.md`. Its constructor defaults already include the Cognito authorizer and
+shared environment.
 
 ```ts
 api.post({
-    routePath: '/projects',
-    functionName: lambdaName('ProjectsPost'),
-    entry: handlerPath('src/handlers/project.handler.ts'),
-    handler: PROJECT_HANDLER.SAVE,
-    scopes: [writeAuthScope],
+	routePath: '/projects',
+	functionName: lambdaName('ProjectsPost'),
+	entry: handlerPath('src/handlers/project.handler.ts'),
+	handler: PROJECT_HANDLER.SAVE,
+	scopes: [writeAuthScope],
 });
 ```
 
@@ -33,9 +35,9 @@ api.post({
 
 ```ts
 export const saveProjectHandler = withWriteMiddleware(saveProjectController)
-    .use(authorizedGroup({ allowed: [adminGroup] }))
-    .use(validateHeaders(jsonContentTypeSchema))
-    .use(validateBody(projectPostDtoSchema));
+	.use(authorizedGroup({ allowed: [adminGroup] }))
+	.use(validateHeaders(jsonContentTypeSchema))
+	.use(validateBody(projectPostDtoSchema));
 ```
 
 ## Guidance
@@ -43,15 +45,29 @@ export const saveProjectHandler = withWriteMiddleware(saveProjectController)
 - If the repository already has route scopes in the stack layer, preserve them.
 - If it already has `authorizedGroup(...)` or equivalent middleware, preserve or extend it when group membership matters.
 - Use existing `ALLOWED_GROUP` or equivalent group semantics when present.
-- If the repository lacks handler-level authorization middleware but needs it, generate one reusable middleware instead of inlining claim checks.
+- If the repository lacks handler-level authorization middleware but needs it, generate one reusable middleware instead of inlining claim
+  checks.
 - Prefer API Gateway Cognito authorizers over ad hoc in-Lambda JWT verification.
-- If in-Lambda JWT verification is explicitly required, treat it as an exception and keep it consistent with the existing auth flow instead of replacing the Gateway authorizer.
+- Confirm read/write scope policy rather than inventing scope values. For the common policy, GET uses the configured read scope and
+  mutations use the configured write scope; OPTIONS stays public. API and browser scope values must agree.
+- Reject missing or empty authenticated `sub` with a CORS-bearing 401 before validation or controller execution. Insufficient group
+  membership returns 403. A subject accessor may rely on this established invariant; do not supply a development-user fallback.
+- Scheduled/asynchronous workers do not execute HTTP authorization middleware. When they import shared application composition, provide
+  every environment value that composition requires without implying the worker needs HTTP claims.
+- Ordinary SAM requests do not establish verified Cognito claims. Use constructed claim fixtures for local tests and a deployed
+  authenticated API for live Gateway verification; never disable authorization merely to make local testing pass.
+- If in-Lambda JWT verification is explicitly required, treat it as an exception and keep it consistent with the existing auth flow instead
+  of replacing the Gateway authorizer.
 
 ## Custom Token Authorizers
 
-When the API requires a Lambda token authorizer, Storm’s `createTokenAuthorizer(...)` accepts `identitySource`, `validationRegex`, and `resultsCacheTtl` alongside its Lambda configuration and grants. The defaults use the Authorization header, a Bearer-token validation expression, and a 60-second cache.
+When the API requires a Lambda token authorizer, Storm’s `createTokenAuthorizer(...)` accepts `identitySource`, `validationRegex`, and
+`resultsCacheTtl` alongside its Lambda configuration and grants. The defaults use the Authorization header, a Bearer-token validation
+expression, and a 60-second cache.
 
-Use `validationRegex: null` only when intentionally disabling Gateway’s token-format check; the authorizer Lambda must still authenticate the token. Customize the header or expression only for the required authentication contract. Keep `authorizedGroup(...)` and application authorization separate.
+Use `validationRegex: null` only when intentionally disabling Gateway’s token-format check; the authorizer Lambda must still authenticate
+the token. Customize the header or expression only for the required authentication contract. Keep `authorizedGroup(...)` and application
+authorization separate.
 
 ## In-Lambda JWT Verification Exception
 
@@ -68,14 +84,18 @@ Defaults:
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
 
 const verifier = CognitoJwtVerifier.create({
-    userPoolId: process.env.COGNITO_USER_POOL_ID!,
-    tokenUse: 'access',
-    clientId: process.env.COGNITO_CLIENT_ID!,
+	userPoolId,
+	tokenUse: 'access',
+	clientId,
 });
 
 const payload = await verifier.verify(token);
 ```
 
+`userPoolId` and `clientId` are validated startup configuration, not non-null assertions on environment variables.
+
 ## Compatibility and Validation
 
-Use the separate Storm route interface in `rest-api-pattern.md` when the library is installed. Preserve `authorizedGroup(...)` and existing group policy. Test missing authentication context, insufficient permission, and successful access; failed authorization must prevent controller execution. Configuring Gateway authentication does not grant a Lambda permission to administer the user pool.
+Use the separate Storm route interface in `rest-api-pattern.md` when the library is installed. Preserve `authorizedGroup(...)` and existing
+group policy. Test missing authentication context, insufficient permission, and successful access; failed authorization must prevent
+controller execution. Configuring Gateway authentication does not grant a Lambda permission to administer the user pool.

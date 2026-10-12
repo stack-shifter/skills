@@ -5,11 +5,16 @@ Use before reporting completion. Mark applicable checks passed, failed, or unver
 ## Wiring and Infrastructure
 
 - Storm dependency version and actual exported interfaces checked; no alternative construct properties or invented library helpers.
-- Entry files exist and configured handler exports resolve to functions; infrastructure imports do not newly initialize runtime dependencies.
+- Entry files exist and configured handler exports resolve to functions; infrastructure imports do not newly initialize runtime
+  dependencies.
 - Methods, paths, authorizers, scopes, request models, and parameters match the requested contract.
-- Shared defaults and route overrides produce intended environment, bundling, and permissions. Public routes are deliberate; default grants do not leak unnecessary access.
-- Configured stage name and optional logging, monitoring, metrics, and throttling settings synthesize as intended; existing stage names stay unchanged unless requested. Custom token-authorizer overrides match the authentication contract when used.
+- Shared defaults and route overrides produce intended environment, bundling, and permissions. Public routes are deliberate; default grants
+  do not leak unnecessary access.
+- Configured stage name and optional logging, monitoring, metrics, and throttling settings synthesize as intended; existing stage names stay
+  unchanged unless requested. Custom token-authorizer overrides match the authentication contract when used.
 - Relevant type checks, tests, and affected CDK synthesis pass. No deployment is performed as validation.
+- Runtime imports use the supported Storm `/framework` entry; handler dependency graphs and real bundles do not accidentally include CDK.
+  Template tests with bundling disabled are not bundle verification.
 
 ## Application Behavior
 
@@ -19,16 +24,27 @@ Use before reporting completion. Mark applicable checks passed, failed, or unver
 - Parser and unexpected middleware errors use the agreed error contract without sensitive details.
 - Resource access is route-specific; external dependencies are mocked in tests.
 - Persistence remains behind repositories; multi-system partial failure/retry behavior is checked when relevant.
+- Worker configuration is startup-safe without HTTP claims. Missing subjects, insufficient groups, scopes, and public OPTIONS are covered
+  where applicable; local fixtures are not proof of deployed Gateway authentication.
+- Storage cleanup retains failed work, handles per-object failures, and has grants for all relevant prefixes. Logs distinguish database
+  removal from successful S3 cleanup.
+- Tests use deterministic configuration and disposable persistence; no unintended live calls or unasserted console noise. See
+  `testing-pattern.md` for isolation and `storage-cleanup-pattern.md` for deletion ordering.
 
 ## Skill Scenarios
 
 When evaluating changes to this skill, exercise:
 
-1. An installed Storm project adding a protected read route: public exports, constructor defaults, read grant, validated inputs, and working handler wiring.
-2. An existing Storm API adding a route: common/write middleware, authorization, controllers, dependency modules, repository context, and response contract retained.
-3. A new project with Storm installed: compatible dependency and direct library constructs, with common/write middleware, controllers, repository context, and app composition for the required application behavior. No copied infrastructure library or unnecessary wrapper functions.
+1. An installed Storm project adding a protected read route: public exports, constructor defaults, read grant, validated inputs, and working
+   handler wiring.
+2. An existing Storm API adding a route: common/write middleware, authorization, controllers, dependency modules, repository context, and
+   response contract retained.
+3. A new project with Storm installed: compatible dependency and direct library constructs, with common/write middleware, controllers,
+   repository context, and app composition for the required application behavior. No copied infrastructure library or unnecessary wrapper
+   functions.
 
-For each scenario inspect generated code and run available type checks, focused tests, and synthesis. Static review alone does not verify runtime behavior. Record missing tooling or dependencies explicitly.
+For each scenario inspect generated code and run available type checks, focused tests, and synthesis. Static review alone does not verify
+runtime behavior. Record missing tooling or dependencies explicitly.
 
 ## Handoff
 
@@ -43,4 +59,5 @@ For each scenario inspect generated code and run available type checks, focused 
 - Explicit user preferences win; do not migrate existing APIs automatically.
 - Exercise both infrastructure paths with the same application behavior and permission checks.
 
-- Without Storm, stack examples call local construct route methods; native Lambda, API, stage, and integration wiring stays inside constructs. Check the documented subset of defaults and grants rather than assuming full Storm compatibility.
+- Without Storm, stack examples call local construct route methods; native Lambda, API, stage, and integration wiring stays inside
+  constructs. Check the documented subset of defaults and grants rather than assuming full Storm compatibility.
