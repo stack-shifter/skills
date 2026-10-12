@@ -1,8 +1,8 @@
 ---
 name: stack-spec-workflow
 description:
-    Organize and deliver ideas through locked delivery specs and mutable phased plans, for features, fixes, refactors, infrastructure, or
-    documentation. Use whenever the user wants a feature spec drafted with explicit clarification questions, locked requirements in
+    Organize and deliver ideas through single-file specs with locked requirements and mutable delivery plans, for features, fixes,
+    refactors, infrastructure, or documentation. Use whenever the user wants a feature spec drafted with explicit clarification questions, locked requirements in
     `docs/specs`, a persistent phased implementation plan, or a "do the next chunk then check in" implementation loop.
 ---
 
@@ -15,8 +15,10 @@ to software, infrastructure, design, or documentation work. Get user approval be
 there when the user approved a single phase or explicitly requested check-ins. Documentation requests authorize documentation only, not
 implementation of their proposed features.
 
-- **Delivery spec = what to deliver** — locked scope, deliverables, constraints, and acceptance criteria for the initiative
-- **Plan = how** — persistent phases, tasks, validation results, and blockers derived from the spec
+Keep requirements and execution state in one spec file, separated by a horizontal rule (`---`).
+
+- **Requirements = what to deliver** — locked scope, deliverables, constraints, and acceptance criteria for the initiative
+- **Delivery plan = how** — mutable phases, tasks, validation results, and blockers derived from the requirements
 
 ## Working with other skills
 
@@ -24,7 +26,7 @@ Other skills may execute tasks within the active delivery plan. Keep progress, v
 competing execution plans or additional approval gates. Follow the approved phase boundaries and report deferred work before claiming
 completion.
 
-Keep delivery specs and plans in the established delivery-workflow location. Reference supporting requirements and deliverables without
+Keep the combined spec in the established delivery-workflow location. Reference supporting requirements and deliverables without
 duplicating them or treating their folders as the delivery-workflow location. Surface conflicts with referenced requirements before affected
 work, and use the Spec Change Escalation rule when locked scope or constraints must change.
 
@@ -47,25 +49,26 @@ Do not use for trivial one-off edits unless the user explicitly asks for the wor
 
 ## Canonical Layout
 
-Prefer the repository's established spec-and-plan convention. Otherwise, use:
+For new work, keep requirements and the delivery plan in one file under `docs/specs/` (or the established specs folder):
 
 ```text
 docs/
   specs/
     010_task-management.spec.md
-    plans/
-      010_task-management.plan.md
 ```
+
+Continue existing separate spec/plan files without migrating them unless requested. If consolidation is requested, preserve requirement and
+task IDs, approval state, validation evidence, and links; update references to the combined file.
 
 If `CLAUDE.md` exists in the repository, treat it as an additional instruction source alongside `AGENTS.md`.
 
 ## Naming
 
-File names: `<id>_<slug>.spec.md` and `<id>_<slug>.plan.md`. Use the same numeric prefix and stable slug for the feature across both files.
+File names: `<id>_<slug>.spec.md`. Use one numeric prefix and stable slug for the initiative.
 
 Examples: `010_task-management`, `011_user-invitations`, `012_billing-webhooks`
 
-To choose the next prefix, inspect both specs and plans, including reserved pending slices, and select the next unused prefix. Do not use
+To choose the next prefix, inspect specs and any legacy plans, including reserved pending slices, and select the next unused prefix. Do not use
 vague slugs like `stuff`, `misc`, or `new-feature`.
 
 ## Spec File
@@ -74,6 +77,13 @@ vague slugs like `stuff`, `misc`, or `new-feature`.
 
 ```md
 # <Feature Title>
+
+## Current Status
+
+- Requirements: draft / locked
+- Delivery: not planned / in progress / blocked / complete
+- Active phase: <phase or none>
+- Next step: <next action>
 
 ## Overview
 
@@ -91,14 +101,16 @@ vague slugs like `stuff`, `misc`, or `new-feature`.
 
 - ...
 
-## Plan References
+---
 
-- `docs/specs/plans/<id>_<slug>.plan.md`
+## Delivery Plan
+
+Not planned yet. Replace this placeholder with the phases below after requirements are locked.
 ```
 
 ### Keep specs concise
 
-Write the spec as a readable requirements document. Scale its length to the feature; aim for about one page for a small feature, without
+Keep the requirements portion readable. Scale its length to the feature; aim for about one page for a small feature, without
 cutting necessary behavior or constraints to meet a word limit.
 
 - Keep the Overview to one or two sentences explaining the feature and its purpose.
@@ -149,55 +161,53 @@ After writing a new spec, always output a summary card:
 
 ```
 Spec:    <id>_<slug>.spec.md
-Plan:    docs/specs/plans/<id>_<slug>.plan.md (planned or created)
+Plan:    Delivery Plan section in the same file (not planned or created)
 Branch:  <actual branch, only when relevant; otherwise omit>
 Summary: <one-sentence description of the feature>
 Open Questions: <count of [NEEDS CLARIFICATION] markers>
 ```
 
-## Plan File
+## Delivery Plan Section
 
-Use one plan file by default. Use multiple plans only for distinct execution tracks, such as backend and frontend work or a separate
-migration. Reference every plan from the spec, give each a distinct scope, and operate on one active plan per run unless the user explicitly
-asks otherwise. Record dependencies between plans in their tasks and gates.
+Keep one delivery plan below the horizontal rule in the spec. Use ordered phases for distinct execution tracks and record dependencies in
+their tasks and gates; do not create separate plan files for new work. Update Current Status as work progresses so the next action is easy
+to find. Current Status and Delivery Plan remain mutable after requirements are locked.
 
-Each plan should use this structure, repeating the phase section as needed:
+Use this structure under `## Delivery Plan`, repeating the phase section as needed:
 
 ```md
-# <Feature Title> Plan
+### Phase 1 - <Outcome>
 
-Spec: `docs/specs/<id>_<slug>.spec.md`
-
-## Phase 1 - <Outcome>
-
-### Tasks
+#### Tasks
 
 - [ ] `P1.T1` <small, reviewable task>
 - [ ] `P1.T2` <small, reviewable task>
 
-### Expected Files
+#### Expected Files
 
 - `path/to/file.ts`
 
-### Validation
+#### Validation
 
 - <command or manual check>: not run
 
-### Gate
+#### Gate
 
 - <observable completion condition>: not verified
 
-## Blockers
+### Blockers
 
 - None currently.
 ```
+
+Keep completed phases compact while retaining task IDs, outcomes, and validation evidence. Record concise results rather than running logs.
 
 Keep the plan execution-oriented. Refine ambiguous or oversized tasks before coding: clarify wording, split tasks, and update file lists,
 checks, or gates. Preserve existing task IDs when possible and assign new IDs to added tasks. Record blockers and concise validation
 evidence as work progresses.
 
 If code has drifted from the plan but still matches the spec, update the plan to reflect reality before continuing. Do not hide requirement
-changes inside plan refinements. Reconcile affected plans whenever an authorized spec revision occurs.
+changes inside plan refinements. Reconcile affected phases whenever an authorized requirements revision occurs.
 
 ## Keep changes small and measured
 
@@ -219,7 +229,7 @@ For larger initiatives, prefer small slices with usable, independently verifiabl
 delivery remains valid when the user prefers it: define temporary behavior and its replacement boundary rather than requiring an unfinished
 backend to pass the gate.
 
-In separate repositories, keep each slice's spec and plan local, with independent numbering and prerequisites. Respect the user's linking
+In separate repositories, keep each slice's combined spec local, with independent numbering and prerequisites. Respect the user's linking
 preference: local links plus plain-language **API next** / **UI next** handoffs suffice when cross-repository links are unwanted. State the
 next capability, its contract, and what is already usable; never imply another repository was implemented or validated.
 
@@ -279,7 +289,8 @@ When a spec already exists, treat it as the source of truth and run the holistic
 
 ### Stage 2: Generate the phased plan
 
-Once the spec is locked, create or revise its referenced plan file. Keep execution state in the plan so work can resume across sessions.
+Once requirements are locked, create or revise the Delivery Plan section below the horizontal rule. Keep execution state there so work can
+resume across sessions. For an existing separate plan, continue using that file until consolidation is requested.
 Read the spec and current code or design/documentation artifacts before defining phases.
 
 Break the work into ordered, reviewable phases. For each phase, define:
@@ -298,9 +309,9 @@ approval; do not ask again for the same work.
 An instruction to implement multiple named phases or all phases authorizes that range, not deployment, database writes, dependency changes,
 or separately gated operations. Honor target restrictions and existing permissions; request only missing authority when necessary.
 
-When resuming, read the spec and active plan and compare them with the current code and relevant deliverable artifacts. Reconcile completed
-work and remaining tasks in the plan without changing requirements. Select the earliest phase whose tasks, validation, or gate remain
-incomplete, even if all its task checkboxes are checked. If the plan is missing, generate it before implementing.
+When resuming, read the requirements and delivery plan in the active spec (or its legacy separate plan) and compare them with
+the current code and relevant deliverable artifacts. Reconcile completed work and remaining tasks in the plan without changing requirements. Select the earliest phase whose tasks, validation, or gate remain
+incomplete, even if all its task checkboxes are checked. If the plan is missing, generate the Delivery Plan section before implementing.
 
 ### Stage 3: Implement and review approved phases
 
@@ -317,8 +328,8 @@ Use the locked spec as requirements and execute each approved phase:
    risk warrants it; a full suite is not required for every phase unless repository instructions require it.
 3. Record validation commands and results and the gate status in the plan. A phase is complete only when its tasks are done, validation
    passes, and the gate is satisfied.
-4. Report completed task IDs, files changed, checks and results, gate status, any spec edits, and remaining blockers. Confirm that the plan
-   is updated.
+4. Report completed task IDs, files changed, checks and results, gate status, any requirement edits, and remaining blockers.
+   Update Current Status and confirm that the plan is updated.
 5. With single-phase approval, stop for feedback or instruction to continue. With explicit multi-phase/all-phase approval, proceed to the
    next approved phase after its predecessor's gate passes, keeping progress updates concise. New user direction, failed gates, missing
    authority, or material scope changes still require resolution. Address feedback and rerun affected checks before continuing.
@@ -332,7 +343,7 @@ phase to start later work.
 
 After the final phase, compare the implementation against every spec acceptance criterion. Report each criterion as met, unmet, or
 unverified, with supporting checks or evidence. Record remaining gaps and completion status in the plan and state whether the feature is
-ready for review or needs further work. When multiple plans exist, verify all referenced plans before reporting feature completion.
+ready for review or needs further work. For legacy specs with multiple plans, verify all referenced plans before reporting feature completion.
 Completed phases alone do not establish feature completion.
 
 ## Evidence and Final Reviews
@@ -354,7 +365,9 @@ gate rather than presenting a substitute as that agent.
 
 ## Spec Lock Rule
 
-Treat the spec as locked once the user approves it or asks for implementation without requesting requirement changes.
+Treat the requirements portion—from Overview through What This Touches—as locked once the user approves it or asks for implementation
+without requesting requirement changes. Current Status and the Delivery Plan remain editable; task progress must never silently change
+approved requirements. References to a locked spec mean its requirements portion.
 
 Do not start implementation while any `[NEEDS CLARIFICATION]` markers remain. Resolve them first, then treat the cleaned spec as the
 lockable source of truth.
@@ -392,12 +405,12 @@ Wait for user approval before editing the spec or continuing implementation.
 
 ## Choosing the Active Spec and Plan
 
-Determine the active spec and its referenced plan in this order:
+Determine the active spec and its Delivery Plan section (or legacy referenced plan) in this order:
 
 1. Explicit user-provided file or feature ID
 2. Files referenced in the current task context
 3. Files matching the current branch or active feature name
-4. The only matching spec and plan in the repository
+4. The only matching spec in the repository
 
 If multiple candidates remain, ask the user which to use.
 
@@ -406,5 +419,5 @@ If multiple candidates remain, ask the user which to use.
 - Advance only through authorized phases; explicit approval for all phases is sufficient without repeated approval requests.
 - Do not silently change locked requirements by editing the spec during implementation.
 - Do not guess which spec or plan is active when multiple candidates exist.
-- Do not store execution state in the spec.
-- Use the spec as the source of truth for requirements and the plan for execution state.
+- Keep execution state in Current Status and Delivery Plan; keep it out of the locked requirements portion.
+- Separate requirements from Delivery Plan with a horizontal rule, and keep both in the same file for new work.

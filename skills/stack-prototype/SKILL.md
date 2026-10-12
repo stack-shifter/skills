@@ -13,7 +13,7 @@ This skill produces product design artifacts: prototypes, concise product behavi
 
 When both skills are active:
 
-- Read the active delivery spec and plan before starting. Keep them in `docs/specs/` and `docs/specs/plans/`, or the established delivery-workflow location. Keep product specifications in `product-spec/`; do not move delivery documents there or treat a product spec as the delivery spec.
+- Read the active delivery spec and plan before starting. Keep requirements and the Delivery Plan section together in `docs/specs/`, or the established delivery-workflow location; continue legacy separate plans until consolidation is requested. Keep product specifications in `product-spec/`; do not move delivery documents there or treat a product spec as the delivery spec.
 - Execute only the prototype activities covered by the approved delivery phase. The numbered phases below describe this skill's procedure, not additional approval gates. Reuse existing authorization and stop at the delivery plan's phase boundary.
 - Update the active delivery plan with completed tasks, validation results, and blockers. Do not create a competing design plan or execution checklist in the product spec. If delivery planning is requested without an active plan, use `stack-spec-workflow` to create the delivery spec and plan.
 - Link the delivery spec to its product specs and prototypes. Keep product behavior in the product spec and delivery scope and acceptance in the delivery spec; reference rather than duplicate requirements. Product-flow numbering is independent of delivery IDs.
@@ -211,7 +211,7 @@ One-sentence purpose of this flow.
 - <specific question, or None>
 ```
 
-Record material design assumptions and any persistence/reset behavior briefly. Do not add backend endpoints, proposed domain types, or implementation task lists. For requested delivery planning, follow the integration rules above: use a separate delivery spec in `docs/specs/` and its plan in `docs/specs/plans/`, or the established equivalent. The product spec remains a design deliverable and contains no execution state.
+Record material design assumptions and any persistence/reset behavior briefly. Do not add backend endpoints, proposed domain types, or implementation task lists. For requested delivery planning, follow the integration rules above: use a delivery spec in `docs/specs/` with its Delivery Plan section below a horizontal rule, or continue the established legacy files. The product spec remains a design deliverable and contains no execution state.
 
 ---
 
