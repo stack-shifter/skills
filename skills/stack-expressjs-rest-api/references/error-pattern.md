@@ -1,10 +1,6 @@
 # Error Pattern
 
-Use this reference when you need a reusable typed-error and HTTP error-response pattern.
-
-## Goal
-
-Create a named error class hierarchy for flow control and an `ErrorResponseBuilder` or equivalent shared pattern for consistent HTTP error responses.
+Reuse shared error classes and response formatting. These examples keep error names explicit and preserve a common HTTP payload.
 
 ## Error Classes
 
@@ -86,7 +82,7 @@ export class ConflictError extends Error {
 
 ```ts
 // src/models/entities/error.model.ts
-import { StatusCode } from '../utilities/status-code';
+import { StatusCode } from '../../utilities/status-code';
 
 export type ErrorResponse = {
   type: ErrorType;
@@ -147,17 +143,19 @@ export class ErrorResponseBuilder {
 
 ## Global Error Mapping
 
-```ts
-// Global error middleware may stay narrow when controllers already map
-// common repository and validation errors themselves.
-```
+Use the complete `globalErrorHandler` example in [middleware-pattern.md](middleware-pattern.md). It maps the shared errors above and parser
+failures to the existing response model. Keep it as a fallback when local controllers already translate known errors; avoid double mapping.
 
 ## Guidance
 
-- Always set `this.name` explicitly in each class — controllers branch on `error.name` (string), not `instanceof`, so the name must survive module boundary crossings
+- Set `this.name` explicitly for diagnostics. Use the repository's established error identification; the connected examples use `instanceof`
+  for application errors and narrow parser-error metadata. Do not trust arbitrary error messages or accept any supplied status code.
 - If the repository already has typed errors or an error mapper, extend it instead of introducing a second hierarchy.
 - If it does not, centralize HTTP mapping in one place instead of repeating the same response shapes across controllers.
 - If controllers already use `ErrorResponseBuilder` in local `try/catch` blocks for known errors, preserve that approach and let the global handler remain the fallback for unexpected failures
 - Add domain-specific error subclasses (e.g. `GroupNotFoundError extends IdentityError`) as needed rather than reusing generic errors
 - `ErrorResponseBuilder` uses a fluent builder pattern; chain `setType`, `setStatus`, `setMessage`, and optionally `setDetails` before calling `build()`
 - Keep `ErrorType` enum values as human-readable strings — they appear in API responses
+
+Preserve error bodies, status codes, headers, and pagination contracts. Return safe client messages for unexpected failures; log internal
+details through the existing logger without exposing tokens, credentials, raw request bodies, or stack traces in responses.

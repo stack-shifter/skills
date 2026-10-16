@@ -1,40 +1,28 @@
 # Model Pattern
 
-Use this reference when you need a reusable model and validation pattern.
-
-## Goal
-
-Create TypeScript types, DTOs, and Zod schemas for a domain entity in a model layout that matches the repository.
-
-## Baseline Example
+Keep the repository's model layout and Zod import style. These connected examples use Zod 4 and separate entities from validation.
 
 ```ts
 // src/models/entities/item.model.ts
-export interface IItem {
-  id?: string;
+export interface Item {
+  id: string;
   name: string;
-  createdAt?: string;
-  modifiedAt?: string;
+  createdAt: string;
+  modifiedAt: string;
 }
+```
 
-// src/models/query/item.query.ts
-export interface IItemQuery {
-  limit?: number;
-  cursor?: string;
-  sort?: 'asc' | 'desc';
-}
-
+```ts
 // src/models/validation/item.validation.ts
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 export const itemPathSchema = z.object({
   itemId: z.uuid(),
 });
 
 export const itemQuerySchema = z.object({
-  sort: z.enum(['asc', 'desc']).optional(),
-  limit: z.coerce.number().int().positive().max(100).optional(),
-  cursor: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  cursor: z.string().min(1).optional(),
 });
 
 export const itemPostDtoSchema = z.object({
@@ -46,33 +34,14 @@ export const itemPutDtoSchema = z.object({
   name: z.string().trim().min(1).max(128),
 });
 
-export type ItemPostDto = z.infer<typeof itemPostDtoSchema>;
-export type ItemPutDto = z.infer<typeof itemPutDtoSchema>;
+export type ItemPath = z.output<typeof itemPathSchema>;
+export type ItemQuery = z.output<typeof itemQuerySchema>;
+export type ItemPostDto = z.output<typeof itemPostDtoSchema>;
+export type ItemPutDto = z.output<typeof itemPutDtoSchema>;
 ```
 
-## Base Model Reference
-
-```ts
-// src/models/base.model.ts
-export type BaseModel = {
-  id: string;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-export type BaseQuery = {
-  limit?: number;
-  cursor?: string;
-};
-```
-
-## Guidance
-
-- Use the repository's existing Zod import style first. Some repos use `zod`, others use `zod/v4`.
-- If the repository already separates entities, DTOs, query types, and validation schemas, adapt to that pattern instead of forcing one-file-per-entity.
-- If it does not, keeping related types and schemas together is a good default.
-- Use `z.uuid()` for UUID fields, not `z.string().uuid()`
-- Add schema transforms only when the repository already uses parsed output directly or when the normalized result is consumed immediately after validation
-- Use `z.coerce.number()` for query params — they arrive as strings from Express
-- Create separate schema objects per validation target: one for `id` params, one for query, one for body
-- Expect validated and coerced values to be consumed from the repository's existing pattern, whether that is `response.locals.validated` or direct reads from the request object
+- Store parsed output in `response.locals.validated` and consume it in the controller. `safeParse()` does not update the original input.
+- Keep one schema per validation target. Check repeated/nested query inputs against the actual parser configuration; do not assume a string.
+- Defaults, coercions, and transforms are behavior: test that the resulting number, trimmed name, or default reaches application logic.
+- Preserve established DTO names and schema layouts. Introduce fields and constraints only when the requested contract needs them.
+- Validate cursor structure at the pagination boundary; a base64-looking string alone does not prove a valid cursor.

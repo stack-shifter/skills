@@ -1,185 +1,99 @@
 ---
 name: stack-expressjs-rest-api
-description: Designs and implements REST APIs using Express 5 with TypeScript, following the target repository's patterns first. Use this whenever the user wants to add or modify Express routes, controllers, middleware, validation, authentication, repositories, services, or runtime composition — even if they only ask for "a route", "a controller", "a handler", "validation", or "some middleware".
+description: Design and implement Express 5 REST APIs with TypeScript, following existing project patterns. Use for routes, controllers, middleware, validation, authentication, services, repositories, runtime composition, and optional Lambda Web Functions deployment.
 ---
 
 ## Purpose
 
-Use this skill to design and implement Express 5 REST APIs in a way that fits the target repository first.
+Deliver working Express API changes using this order of precedence:
 
-When local patterns exist, use them as the source of truth. When they do not, use the references in this skill as portable patterns to generate a coherent structure rather than one-off route code.
+1. explicit user requirements
+2. existing project architecture, naming, API contracts, and module settings
+3. this skill's examples
 
-This skill is about Express API structure and boundaries, not database design. Persistence guidance in this skill stops at the boundary:
-
-- controllers and services should depend on repositories, not datastore clients
-- repositories should be aggregated behind one context or composition object when multiple repositories are used together
-- business and domain layers should not construct datastore-specific requests directly
-
-Portable references live in `references/`. Load only the patterns needed for the task:
-
-- `references/app-pattern.md` for Express app setup and middleware composition
-- `references/route-pattern.md` for route definitions with validation and auth middleware
-- `references/controller-pattern.md` for request handlers, error flow, and response shaping
-- `references/middleware-pattern.md` for auth, validation, and global error middleware
-- `references/model-pattern.md` for TypeScript types and Zod v4 validation schemas
-- `references/error-pattern.md` for typed error classes and `ErrorResponseBuilder`
-- `references/status-code-pattern.md` for the `StatusCode` enum
-- `references/pagination-pattern.md` for cursor pagination interfaces and encoding
-- `references/repository-pattern.md` only for repository boundary, repository interfaces, and aggregate context guidance
-
-## Express 5 Key Behaviors
-
-Express 5 requires **Node.js 18 or higher**.
-
-For new projects, this skill's default baseline is **Node.js 24** unless the target repository already uses another supported version.
-
-**Async error propagation** is automatic. Rejected promises and thrown errors inside `async` route handlers forward to the error handler without an explicit `next(error)`. Controllers may still use `try/catch` to handle named error types before that fallback when the repository already does so.
-
-**Built-in body parsing** — no separate `body-parser` package needed:
-
-```ts
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-```
-
-**Error-handling middleware** must declare all four parameters `(err, req, res, next)` or Express treats it as regular middleware.
-
-**Route path syntax changed** — review wildcard and optional segment syntax carefully when migrating Express 4 routes.
-
-**`req.query` should not be treated as the destination for coerced values** — store validated query output on `res.locals` instead of mutating `req.query`.
-
-When the target repository already validates only for rejection and continues reading from `req.body`, `req.params`, or `req.query`, preserve that pattern unless the user explicitly wants a validation-pipeline refactor.
-
-**`req.body` is `undefined` until a body parser runs** — do not assume JSON payloads exist before `express.json()`.
-
-## Environment Variable Strategy
-
-New projects use Node.js's built-in `process.loadEnvFile()` instead of `dotenv`. Three environment files are created at project root:
-
-| File | Purpose | Committed to git |
-|---|---|---|
-| `.env.example` | Documents all required variables with empty or example values | Yes |
-| `.env.development` | Local development values | No |
-| `.env.production` | Production values | No |
-
-`.gitignore` must include:
-
-```text
-.env.development
-.env.production
-```
-
-In a composition or bootstrap module such as `app.ts`, import first, then load the correct file based on `NODE_ENV` immediately after imports and before application setup:
-
-```ts
-import express from 'express';
-
-if (process.env.NODE_ENV !== 'production') {
-  process.loadEnvFile(`.env.${process.env.NODE_ENV || 'development'}`);
-}
-```
-
-In production, environment variables are injected directly into the process. Do not attempt to load a file in production.
-
-Avoid reading `process.env` at module top level inside imported files before `loadEnvFile()` runs. If a dependency needs env values during initialization, move that env read into a function, a factory, or the app bootstrap path.
-
-When the target repository already relies on package scripts such as `node --env-file=.env.development ...`, preserve that approach instead of adding `process.loadEnvFile()` to the app bootstrap.
-
-## Source of Truth
-
-This skill works across repositories. Do not assume a specific folder layout exists.
-
-Use this order:
-
-1. the target repository's existing patterns and conventions
-2. the skill's documented patterns in `references/`
-3. the inline examples in this skill
-
-If local code differs from the skill examples, follow local code and use the examples only as design guidance.
+Keep examples and generated code simple: arrow functions, plain `RequestHandler` declarations, named DTOs on local variables, clear control
+flow, and small classes. Preserve extensionless imports unless the project already requires another style. Avoid positional handler
+generics, endpoint-specific request types, speculative abstractions, and unrelated restructuring.
 
 ## Repository Discovery
 
-Start every use of this skill with a short discovery pass before proposing code.
+Inspect the parts relevant to the request:
 
-Inspect only the parts of the repository that matter for the request. Common places include:
+- manifests, lockfiles, installed types, scripts, and tests
+- app bootstrap, environment loading, router mounting, and route prefixes
+- controller conventions, middleware order, and shared status/error responses
+- schemas and whether parsed outputs reach application logic
+- authentication, groups/scopes, and resource-ownership checks
+- services, repositories, shared context, dependency composition, and pagination
+- established comments, JSDoc, and spacing
 
-- the Express app entry point or bootstrap module
-- router modules
-- controllers or route handlers
-- middleware modules
-- services
-- repositories or data-access modules
-- models and Zod schemas
-- dependency wiring or composition modules
-- error class hierarchy and shared response/status utilities
-- pagination helpers and cursor utilities
+State the approach briefly: **Existing pattern mode** extends local code; **Pattern generation mode** fills a missing pattern. Preserve
+compatible conventions, including controller-local error mapping and existing `dependencies/` modules. Fix incompatible behavior within the
+requested scope. Do not automatically migrate Express versions, module systems, or deployment platforms.
 
-Look for:
+## Implementation
 
-- how the app bootstrap is composed
-- how routes are mounted and versioned
-- whether controllers already exist or should be added
-- whether validation middleware stores parsed output on `res.locals` or only rejects invalid input
-- whether auth middleware already exists
-- whether repositories and a repository context already exist
-- whether shared services or mappers already exist for the resource area
-- whether utilities already solve status codes, cursor parsing, or error handling
-- style indicators such as JSDoc conventions, inline step comments, response builder usage, and route path composition
+1. Identify method, path, inputs, authorization, success/error responses, and required dependency access. Resolve material contract gaps
+   before affected work; preserve established status codes, headers, payloads, and pagination.
+2. Extend the existing router and app mount. Keep prefixes consistent so `/v1` plus `/items` produces `/v1/items` exactly once.
+3. Validate body, path, and query before controller execution. For new patterns, store parsed output in `response.locals.validated` and read
+   it through local DTO annotations. A schema check does not mutate the original request; consume transformations, coercions, and defaults.
+   Preserve rejection-only validation when no downstream behavior relies on discarded output.
+4. Authenticate protected routes and enforce groups/scopes and ownership where required. Use one shared `Request` extension for middleware-
+   added identity; keep its fields optional until checked. Controllers that do not use identity keep ordinary handler declarations.
+5. Keep orchestration in controllers, domain workflows/integrations in services, and datastore requests, transactions, mapping, and cursor
+   handling in repositories. Reuse shared clients and repository context through `app.ts` or existing dependency modules. Add only layers
+   required by the flow or repeated code; a small project need not have every layer.
+6. Reuse error/status utilities. For new patterns, let global error middleware translate typed errors; retain established local `try/catch`
+   mappings. Keep parsing, validation, authentication, authorization, and unexpected failures consistent without exposing internal details.
+7. Load configuration before dependency initialization. Keep the app importable without starting a listener or loading developer env files;
+   process startup owns listening and shutdown. Filenames are examples: preserve an existing `app.ts` entrypoint when appropriate.
 
-After discovery, choose one mode and state it:
+Keep HTTP authorization middleware out of scheduled/background workers. Workers call application services with their own configuration.
+Database modeling is outside this skill; preserve required atomicity and recovery behavior at repository/service boundaries.
 
-- `Existing pattern mode`: extend the repository's existing abstractions
-- `Pattern generation mode`: generate the missing reusable pattern because no relevant abstraction exists
+## Express 5 Baseline
 
-## Existing Pattern Mode
+Follow supported project dependencies first. For a new project, use Node.js 24, Express 5, TypeScript, and Zod 4 without pinning example patch
+versions. Express 5 requires Node.js 18 or higher; verify compatibility before using newer Node APIs.
 
-Use this mode when the repo already has patterns such as:
+```bash
+npm init
+npm install express@5
+npm install --save-dev typescript @types/express@5 @types/node
+```
 
-- an app bootstrap with helmet, cors, trust proxy, and global error middleware
-- router-based route definitions with inline middleware
-- `RequestHandler`-style async controllers or equivalent handlers
-- auth middleware for Cognito JWT or another existing auth strategy
-- validation middleware for body, query, and params
-- a 4-parameter global error handler
-- services for business logic and external integrations
-- repository classes behind a composition or context layer
-- model modules with TypeScript types and Zod schemas
-- typed error classes and a shared status-code utility
-- dependency injection or composition root modules
+Use the project's package manager. Add only middleware and development tools actually used, including their types when needed.
 
-Preserve local patterns even when they reflect older Express 4-era conventions. Only generate new patterns when the repository does not already establish a coherent approach.
+- Rejected promises from async middleware/handlers reach error middleware automatically. Callback-based failures still need `next(error)`.
+- Error middleware must declare all four parameters and delegate when headers were already sent.
+- `express.json()` and `express.urlencoded()` provide body parsing; `req.body` may be undefined before parsing.
+- `req.query` is a getter in Express 5; do not use it as the destination for coerced values.
+- Named wildcards (`/*splat`, `/{*splat}`) and braces for optional segments (`/:file{.:ext}`) replace older route syntax.
+- Use shared status constants, `Location` for created resources, and bodyless 204 responses.
+- Preserve existing auth. For a new Cognito flow, use the connected verification and group middleware example.
+- Use `helmet` and the existing CORS policy; new examples use `CORS_ORIGIN`. CORS does not authorize requests. Set proxy trust only for the
+  actual trusted topology.
 
-Patterns worth preserving when present:
+See the official [installation](https://expressjs.com/en/5x/starter/installing/),
+[migration](https://expressjs.com/en/guide/migrating-5/), and [error handling](https://expressjs.com/en/guide/error-handling/) guides.
+These examples use a TypeScript runner or compilation; native Node type stripping does not type-check or support enum/parameter-property
+syntax. Keep the project's existing compiler settings.
+When no configuration exists, use the current TypeScript-recommended Node.js module mode (currently `NodeNext`), compatible with the
+deployed runtime. Verify current guidance instead of copying an older version-specific fallback; see the app reference for the example.
 
-- routes mounted under `/v1` with full resource paths declared inside each router
-- controller-local `try/catch` blocks that map known repository errors into `ErrorResponseBuilder` payloads
-- validation middleware that rejects invalid input without storing parsed values on `res.locals`
-- a shared repository context or composition object that owns resource repositories
-- function JSDoc and concise step comments inside handlers, middleware, and repositories
+## Project Shape
 
-## Pattern Generation Mode
-
-Use this mode when the target repository does not already provide a reusable abstraction for one or more layers.
-
-In this mode:
-
-- use the references as guidance for the shape of the generated code, not as a requirement that exact files or names exist
-- introduce the smallest reusable abstraction that makes future routes easier to add and maintain
-- prefer generating a reusable app bootstrap, router, middleware, service, repository, or utility pattern over embedding everything in a single file
-- keep generated names and folders aligned with the target repository's conventions
-
-## Preferred Project Shape
-
-Unless the target repository already has a different established layout, use a structure like:
+Use this layout only when the project lacks an established structure:
 
 ```text
 src/
-├── app.ts
+├── app.ts                # middleware, routes, and application composition
+├── server.ts             # listening and shutdown, when separate startup is useful
 ├── controllers/
 ├── data/
 │   ├── context.ts
-│   ├── repositories/
-│   └── repository.interface.ts
+│   └── repositories/
 ├── dependencies/
 ├── middlewares/
 ├── models/
@@ -188,91 +102,50 @@ src/
 └── utilities/
 ```
 
-Treat this as a conceptual layout, not a hard requirement.
+Wire only the pieces needed: model → route → controller → service/repository → composition → app mount. Keep database clients out of
+controllers; use a shared repository context when repositories work together.
 
-When adding a new resource, a good flow is:
+## Environment and Startup
 
-1. model in a model module
-2. route in a router module
-3. controller in a controller or handler module
-4. service method if logic is non-trivial
-5. repository in a data-access layer
-6. wire dependencies in a composition layer
-7. mount the route in the app bootstrap
+Preserve existing configuration loading. For new projects, commit `.env.example` with all required keys and fictional/empty values;
+gitignore local `.env.development` and any optional `.env.production`. Production receives injected values.
 
-## Default Assumptions
+Prefer `tsx` for development in new TypeScript projects; preserve an existing working runner. Load local configuration before app imports:
 
-- Node.js version baseline for new projects: 24
-- Express version: 5.x (`express ~5.1.0`)
-- Language: TypeScript; follow the repository's existing module system and compiler settings first
-- Validation: Zod v4 (`zod/v4`)
-- Auth: preserve the repository's existing auth strategy; if generating a new one, prefer reusable JWT/Cognito middleware over inline checks
-- Security headers: `helmet`
-- CORS: `cors` with `CORS_ORIGIN` env var, `*` fallback
-- Environment loading: Node.js `process.loadEnvFile()` in the app bootstrap after imports when the repository does not already use another approach
-- Module system: follow the repository first; ESM is common in modern Express 5 TypeScript projects
-
-If the user gives constraints that conflict with these defaults, adapt and state the change.
-
-## Modern Pattern Preferences
-
-When the target repository does not already establish a conflicting pattern, prefer:
-
-- validated request data stored on `res.locals.validated` instead of mutating `req.query`
-- thin controllers that throw typed domain errors and let global error middleware map them to HTTP responses
-- repository-backed pagination with a shared cursor utility rather than ad hoc pagination per route
-- structured logging and graceful shutdown hooks for new apps
-- the repo's existing dev runner first; otherwise use `tsx watch` for new TypeScript projects, `node --watch` for compiled JavaScript, and `nodemon` only when custom watch behavior is already part of the project
-
-## Working Rules
-
-1. Read the relevant local app bootstrap, router, controller, middleware, service, repository, and composition code before editing.
-2. If the repository already has an app bootstrap pattern, extend it. If not, generate one reusable bootstrap path instead of wiring Express ad hoc in multiple files.
-3. If the repository already has router modules, extend them. If not, generate reusable `Router` modules instead of putting all endpoints directly in the app bootstrap.
-4. Keep controllers thin. Put validation in middleware, orchestration in controllers, and persistence behind repositories.
-5. Reuse an existing composition pattern for dependencies when it exists. If it does not, generate a lightweight composition module rather than constructing shared clients in every controller.
-6. Reuse a shared error and status-code pattern when one exists. If it does not, generate one shared pattern instead of repeating inline HTTP error payloads.
-7. Keep persistence mechanics behind repositories and one aggregate repository context. Controllers and services should not construct raw datastore requests directly.
-8. Keep generated names, route prefixes, and response shapes aligned with the target repository's conventions.
-9. Match the repository's documentation style when adding code comments: preserve JSDoc and brief step comments when those are established locally.
-
-## Environment File Templates
-
-### `.env.example`
-
-```dotenv
-NODE_ENV=
-PORT=3000
-CORS_ORIGIN=
-
-# Auth / identity
-AWS_REGION=
-COGNITO_USER_POOL_ID=
-COGNITO_APP_CLIENT_IDS=
-
-# App-specific dependencies
-APP_DEPENDENCY_CONFIG=
+```bash
+tsx watch --env-file=.env.development src/server.ts
 ```
 
-### `.env.development`
+`tsx` runs without type checking; run `tsc --noEmit` separately and use compiled JavaScript for the production examples.
+If an existing bootstrap uses `process.loadEnvFile()`, keep it before dependency initialization. Do not duplicate env loading. See
+[app-pattern.md](references/app-pattern.md) for startup, scripts, environment examples, and a compatible build configuration.
 
-```dotenv
-NODE_ENV=development
-PORT=3000
-CORS_ORIGIN=http://localhost:5173
-AWS_REGION=us-east-1
-COGNITO_USER_POOL_ID=us-east-1_XXXXXXX
-COGNITO_APP_CLIENT_IDS=your-client-id
-APP_DEPENDENCY_CONFIG=local
-```
+## References
 
-## Response Style
+Load only what the task needs. Preserve the connected code snippets when adapting these patterns:
 
-When using this skill, produce:
+- [app-pattern.md](references/app-pattern.md): app composition, startup, and environment loading.
+- [route-pattern.md](references/route-pattern.md): router paths, authorization, validation, and mounts.
+- [controller-pattern.md](references/controller-pattern.md): CRUD handlers, local error mapping, and shared request identity.
+- [middleware-pattern.md](references/middleware-pattern.md): authentication, parsed validation output, and global errors.
+- [model-pattern.md](references/model-pattern.md): entities, DTOs, and schemas.
+- [error-pattern.md](references/error-pattern.md): shared errors and `ErrorResponseBuilder`.
+- [status-code-pattern.md](references/status-code-pattern.md): HTTP status constants.
+- [pagination-pattern.md](references/pagination-pattern.md): pagination contracts and validated cursors.
+- [repository-pattern.md](references/repository-pattern.md): concrete repository classes and shared context/composition.
+- [testing-pattern.md](references/testing-pattern.md): isolated HTTP, middleware, and persistence tests.
+- [storage-cleanup-pattern.md](references/storage-cleanup-pattern.md): recoverable cross-system deletion when uploads/exports need it.
+- [lambda-web-functions.md](references/lambda-web-functions.md): optional deployment without containers.
+- [api-review.md](references/api-review.md): completion checklist.
 
-1. a short statement of the route(s) or component being added
-2. whether you are in `Existing pattern mode` or `Pattern generation mode`
-3. the planned implementation shape in order: model → route → controller → service → repository → dependencies/composition → app mount
-4. explicit assumptions where auth, validation, persistence boundary, or bootstrap wiring is ambiguous
+## Validate and Deliver
 
-Avoid restating generic Express or AWS documentation when a repository-specific code snippet would answer better.
+Read the API review checklist. Run relevant tests, type checks, and build checks. Exercise real middleware through HTTP requests, including
+rejected inputs/auth, parsed output, and response contracts. Report unrun checks as unverified; local tests do not prove deployed auth or
+external integrations. Do not deploy as validation.
+
+Under `stack-spec-workflow`, follow its active spec and approved Delivery Plan section (or legacy active plan). Record tasks, checks, and
+blockers there without competing plans or approval gates.
+
+Finish with implemented routes, meaningful configuration/contract changes, checks and results, and remaining limitations. Include useful
+snippets; when implementation is requested, complete the change rather than stopping at a proposal.

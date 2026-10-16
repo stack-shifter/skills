@@ -1,129 +1,117 @@
 # Repository Pattern
 
-Use this reference when an Express API needs persistence access and the repository needs a coherent boundary between controllers/services and the datastore.
+Keep persistence behind repositories, with one shared context when several repositories work together. Preserve the existing repository
+contracts, classes, and `dependencies/` composition. Controllers orchestrate, services implement domain workflows and integrations, and
+repositories own queries, transactions, record mapping, and persistence error translation.
 
-## Goal
+## Repository Class
 
-Keep controllers and services unaware of datastore mechanics by putting persistence access behind repositories and aggregating repositories behind one shared context when needed.
-
-## Rules
-
-- Controllers and services should ask for domain operations, not construct datastore requests.
-- Repositories own query construction, key construction, transactions, and persistence-specific error handling.
-- When multiple repositories are needed together, expose them through one aggregate context such as `DatabaseContext`, `DataContext`, or `Context`.
-- Route handlers should depend on controllers or services, not on datastore clients directly.
-
-## Repository Interface
-
-```ts
-// src/data/repository.interface.ts
-import { CursorPagination } from './pagination';
-
-export interface Repository<T, TQuery = { cursor?: string; limit?: number }> {
-  findById(id: string): Promise<T | null>;
-  findAll(query?: TQuery): Promise<CursorPagination<T>>;
-  create(entity: T): Promise<T>;
-  update(id: string, entity: Partial<T>): Promise<T>;
-  delete(id: string): Promise<void>;
-}
-```
-
-## Baseline Repository Shape
+Reuse an existing repository interface when present; this concrete class needs no generic base contract. `ItemPersistence` stands in for the
+project's datastore implementation so the example stays database-neutral. Adapt it to the actual driver/query code rather than introducing
+a second CRUD layer. It returns mapped records, creates IDs/timestamps, uses stable pagination, and returns `null` for a missing update.
 
 ```ts
 // src/data/repositories/item.repository.ts
-import { Repository } from '../repository.interface';
-import { CursorPagination } from '../pagination';
-import { Item } from '../../models/item.model';
-import { DatabaseError } from '../../utilities/errors';
+import type { Item } from '../../models/entities/item.model';
+import type { ItemPostDto, ItemPutDto, ItemQuery } from '../../models/validation/item.validation';
+import type { Pagination } from '../pagination.interface';
+import { ConflictError, DatabaseError, NotFoundError, ValidationError } from '../../utilities/errors';
 
-export class ItemRepository implements Repository<Item> {
-  constructor(private readonly db: RepositoryDependencies) {}
+export interface ItemPersistence {
+  findById(id: string): Promise<Item | null>;
+  findAll(query: ItemQuery): Promise<Pagination<Item>>;
+  create(input: ItemPostDto): Promise<Item>;
+  update(id: string, input: ItemPutDto): Promise<Item | null>;
+  delete(id: string): Promise<void>;
+}
+
+export class ItemRepository {
+  constructor(private readonly db: ItemPersistence) {}
 
   async findById(id: string): Promise<Item | null> {
     try {
-      const record = await this.fetchItemRecord(id);
-      if (!record) return null;
-      return this.mapToDomain(record);
-    } catch (error) {
+      const item = await this.db.findById(id);
+      return item;
+    } catch {
       throw new DatabaseError('Error retrieving item');
     }
   }
 
-  async findAll(query?: { cursor?: string; limit?: number }): Promise<CursorPagination<Item>> {
+  async findAll(query: ItemQuery): Promise<Pagination<Item>> {
     try {
-      return await this.fetchItemPage(query);
+      const page = await this.db.findAll(query);
+      return page;
     } catch (error) {
+      if (error instanceof ValidationError) throw error;
       throw new DatabaseError('Error listing items');
     }
   }
 
-  async create(entity: Item): Promise<Item> {
+  async create(input: ItemPostDto): Promise<Item> {
     try {
-      await this.insertItem(entity);
-      return entity;
+      const item = await this.db.create(input);
+      return item;
     } catch (error) {
+      if (error instanceof ConflictError) throw error;
       throw new DatabaseError('Error creating item');
     }
   }
 
-  async update(id: string, entity: Partial<Item>): Promise<Item> {
+  async update(id: string, input: ItemPutDto): Promise<Item> {
+    let item: Item | null;
     try {
-      const updated = await this.updateItem(id, entity);
-      if (!updated) throw new DatabaseError('Item not found');
-      return updated;
+      item = await this.db.update(id, input);
     } catch (error) {
+      if (error instanceof ConflictError) throw error;
       throw new DatabaseError('Error updating item');
     }
+    if (!item) throw new NotFoundError('Item not found');
+    return item;
   }
 
   async delete(id: string): Promise<void> {
     try {
-      await this.deleteItem(id);
-    } catch (error) {
+      await this.db.delete(id);
+    } catch {
       throw new DatabaseError('Error deleting item');
     }
   }
 }
 ```
 
-## Aggregate Context Pattern
+This example treats an already-missing delete as complete. Preserve another established contract when required. Translate known driver
+constraint failures to `ConflictError` where the real query runs; do not indiscriminately convert domain failures to generic database errors.
+Preserve diagnostic causes through existing logging/error conventions without exposing driver details to clients.
 
-When multiple repositories are used together, aggregate them behind one context object instead of exporting ad hoc repository singletons.
+## Shared Context and Composition
 
 ```ts
 // src/data/context.ts
 import { ItemRepository } from './repositories/item.repository';
-import { UserRepository } from './repositories/user.repository';
+import type { ItemPersistence } from './repositories/item.repository';
 
 export class Context {
   readonly items: ItemRepository;
-  readonly users: UserRepository;
 
-  constructor(db: RepositoryDependencies) {
-    this.items = new ItemRepository(db);
-    this.users = new UserRepository(db);
+  constructor(database: ItemPersistence) {
+    this.items = new ItemRepository(database);
+    // Add existing resource repositories here when the flow needs them.
   }
 }
 ```
 
-## Composition Pattern
-
 ```ts
 // src/dependencies/app.dependencies.ts
 import { Context } from '../data/context';
+import { database } from './database.dependencies';
 
-const db = createRepositoryDependencies();
-
-export const context = new Context(db);
-export const itemService = new ItemService(context.items);
+export const dbContext = new Context(database);
 ```
 
-## Guidance
+`database.dependencies.ts` is the application-owned integration point: export a configured client/adapter satisfying `ItemPersistence` from
+the existing dependency module. It is intentionally datastore-specific and not implemented by this portable reference. Instantiate it once
+after configuration loads, not per request. Generated project code must provide working queries and composition, not leave this seam as a stub.
 
-- If the repository already has a repository contract or dependency composition pattern, adapt this shape to it instead of introducing a second one.
-- If it does not, generate one reusable repository and composition pattern rather than calling datastore clients directly from controllers.
-- Repository methods should be named after domain operations or access patterns, not after raw persistence APIs.
-- Keep mapping between persistence records and domain objects inside repositories or dedicated mappers, not in controllers.
-- Keep pagination helpers and cursor encoding inside the data-access layer or shared utilities rather than assembling cursors in controllers.
-- Translate persistence-specific errors into shared application errors at the repository boundary so controllers can stay HTTP-focused.
+Use a service for workflows or external storage rather than moving datastore calls into a controller. Multi-row changes that form one
+invariant belong in a transaction; cross-system work needs explicit failure/retry semantics. Consult
+[storage-cleanup-pattern.md](storage-cleanup-pattern.md) only when the requested flow needs it.

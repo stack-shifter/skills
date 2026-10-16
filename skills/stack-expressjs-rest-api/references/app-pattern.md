@@ -1,107 +1,139 @@
 # App Pattern
 
-Use this reference when you need a reusable Express app bootstrap pattern.
+Separate application composition from process startup. Preserve an established bootstrap; for new apps export an app that tests can import
+without opening a listener or loading developer environment files.
 
-## Goal
+The filenames are examples, not requirements. Keep an existing `app.ts` entrypoint when appropriate. For Lambda Web Functions, adapt its
+listen address using [lambda-web-functions.md](lambda-web-functions.md); preserve the same routes and application layers.
 
-Create one app bootstrap module that wires middleware, mounts routes, and starts the server, while matching the
-repository's environment-loading approach.
+## App Composition
 
-## Baseline Example
+The router declares `/items`, so mount it under `/v1` exactly once.
 
 ```ts
 // src/app.ts
-import express, { Express } from 'express';
+import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import itemRoutes from './routes/item.route';
 import { globalErrorHandler } from './middlewares/global-error.middleware';
-import { healthCheck } from './controllers/health.controller';
+import { NotFoundError } from './utilities/errors';
 
-// Load env file after imports and before app setup when the repository
-// uses bootstrap-based environment loading.
-if (process.env.NODE_ENV !== 'production') {
-  process.loadEnvFile(`.env.${process.env.NODE_ENV || 'development'}`);
-}
+export const app = express();
 
-const app: Express = express();
-
-app.set('trust proxy', true);
+// Enable trust proxy only for the actual trusted proxy topology; leave it off by default.
+app.use(helmet());
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
-app.use(helmet());
 
-const PORT = process.env.PORT || 3000;
+app.use('/v1', itemRoutes);
+app.get('/heartbeat', (_request, response) => {
+  response.json({ status: 'ok' });
+});
 
-app.use('/v1/items', itemRoutes);
-app.get('/heartbeat', healthCheck);
-
-// Global error handler must be the last middleware registered
+// A missing route is not automatically an Express error.
+app.use((_request, _response, next) => {
+  next(new NotFoundError('Route not found'));
+});
 app.use(globalErrorHandler);
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 ```
 
-## Environment Files
+CORS is a browser policy, not authorization. Preserve the project's allowed origins and credential rules. Configure `trust proxy` for known
+hops or addresses only when deployed behind a trusted proxy; unconditional `true` can trust caller-controlled forwarded headers. See
+[Express behind proxies](https://expressjs.com/en/guide/behind-proxies/).
 
-Create three files at the project root:
+## Process Startup
 
+Load local environment files through the development command below, before this module runs. Production receives injected configuration.
+Keep the project's module system; the extensionless examples work with `tsx` or compatible CommonJS compilation.
+
+```ts
+// src/server.ts
+import { app } from './app';
+
+const port = Number(process.env.PORT || 3000);
+
+const server = app.listen(port, (error?: Error) => {
+  if (error) {
+    console.error('Unable to start HTTP server', error);
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`Server running on port ${port}`);
+});
+
+const shutdown = (): void => {
+  server.close((error) => {
+    if (error) {
+      console.error('Unable to close HTTP server', error);
+      process.exitCode = 1;
+    }
+    // Close repository pools and other owned resources here using the existing lifecycle hooks.
+  });
+};
+
+process.once('SIGTERM', shutdown);
+process.once('SIGINT', shutdown);
 ```
-.env.example        ← committed to git; documents all required variables
-.env.development    ← local values; gitignored
-.env.production     ← production values; gitignored
-```
 
-Add to `.gitignore`:
+Follow existing shutdown timeouts and resource cleanup. Do not add an HTTP listener or HTTP auth middleware to background workers.
 
-```
-.env.development
-.env.production
-```
+## Environment and Scripts
 
-`.env.example` should contain every variable with empty or placeholder values so new contributors know what to fill in:
+Commit `.env.example` with required keys and fictional values; gitignore local `.env.development` and any `.env.production`. Production
+normally receives injected configuration. Do not create unused production files or load development files in tests.
 
 ```dotenv
-NODE_ENV=
+NODE_ENV=development
 PORT=3000
-CORS_ORIGIN=
-AWS_REGION=
-COGNITO_USER_POOL_ID=
-COGNITO_APP_CLIENT_IDS=
-DYNAMODB_TABLE=
-# Local development only
-AWS_PROFILE=
-DYNAMODB_ENDPOINT=
+CORS_ORIGIN=http://localhost:5173
+COGNITO_USER_POOL_ID=us-east-1_EXAMPLE
+COGNITO_APP_CLIENT_IDS=example-client-id
 ```
 
-## Suggested Scripts
+Match the existing runner. For a new TypeScript app, install `tsx` as a development dependency:
 
-For new TypeScript projects, use a simple `tsx watch` development script:
+```bash
+npm install --save-dev tsx
+```
+
+Use watch mode for development, a separate type check, and compiled JavaScript for production. `tsx` does not type-check:
 
 ```json
 {
   "scripts": {
-    "dev": "tsx watch src/app.ts",
+    "dev": "tsx watch --env-file=.env.development src/server.ts",
+    "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/app.js"
+    "start": "node dist/server.js"
   }
 }
 ```
 
-If the repository already uses `nodemon`, `ts-node-dev`, or another runner, keep the local convention unless there is a clear reason to standardize.
+Use the project's existing `tsconfig.json` first. Only when none exists, use the current TypeScript recommendation for Node.js projects:
+`NodeNext`, which follows current Node module behavior rather than a fixed older version. The fallback below keeps CommonJS output and
+extensionless imports through `"type": "commonjs"` (or no `type`) in `package.json`; it does not require an ESM migration.
 
-## Guidance
+```json
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "src",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*.ts"]
+}
+```
 
-- If the repository already has an app bootstrap, extend it instead of creating another one.
-- If it does not, generate one bootstrap module instead of spreading setup across multiple files.
-- `process.loadEnvFile()` is built into modern Node releases — no `dotenv` package needed
-- If the repository already loads env files through package scripts such as `node --env-file=.env.development ...`, keep that approach and do not duplicate env loading in `app.ts`
-- If bootstrap-based env loading is used, load the env file immediately after imports in the bootstrap module, and avoid module-level `process.env` reads in imported files before bootstrap runs
-- Set `trust proxy` so `req.ip` and `req.ips` reflect the real client IP behind a load balancer
-- Register `globalErrorHandler` last — Express 5 auto-forwards async rejections to it
-- Use one consistent API prefix such as `/v1/` when the repository does not already use another prefixing scheme
-- If the repository already exposes a public health endpoint such as `/heartbeat`, preserve it
-- In Express 5, `express.json()` and `express.urlencoded()` are built-in; no `body-parser` needed
-- For new apps, add graceful shutdown for HTTP server, database pool, and AWS clients if the repo does not already provide it
-- Follow the repo's existing development runner first; for new TypeScript apps prefer `tsx watch` over `nodemon`
+Use a current supported TypeScript release and check compatibility with the deployed Node runtime. For an existing ESM project, preserve
+its import/build conventions. See TypeScript's [module guidance](https://www.typescriptlang.org/tsconfig/module.html).
+
+Keep test-runner types/configuration in the existing test setup. The development command loads the env file before app imports execute;
+production `start` uses injected variables. Retain another established bootstrap and avoid duplicate env loading. Native Node type stripping does not support the enum/parameter-property syntax used elsewhere in these
+references and does not replace type checking. See [Express installation](https://expressjs.com/en/5x/starter/installing/) for prerequisites
+and TypeScript setup, and the [migration guide](https://expressjs.com/en/guide/migrating-5/) for listener error behavior.

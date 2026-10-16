@@ -1,10 +1,6 @@
 # Route Pattern
 
-Use this reference when you need a reusable router pattern for Express routes.
-
-## Goal
-
-Create a `Router` instance or equivalent route module that wires auth, validation middleware, and controller handlers per route.
+Compose authorization, validation, and controller handlers in the existing router. Keep public routes explicit.
 
 ## Baseline Example
 
@@ -14,11 +10,11 @@ import { Router } from 'express';
 import { authorize } from '../middlewares/authorize.middleware';
 import { validateBody, validateParams, validateQuery } from '../middlewares/validation.middleware';
 import {
-  itemIdSchema,
+  itemPathSchema,
   itemPostDtoSchema,
   itemPutDtoSchema,
   itemQuerySchema,
-} from '../models/item.model';
+} from '../models/validation/item.validation';
 import {
   createItemHandler,
   deleteItemHandler,
@@ -26,22 +22,22 @@ import {
   getItemsHandler,
   updateItemHandler,
 } from '../controllers/item.controller';
-import { getAllowedGroups } from '../utilities/allowed-groups';
 
-const allowedGroups = getAllowedGroups();
+// Fictional group: use the project's approved groups/scopes.
+const allowedGroups = ['editors'];
 const router: Router = Router();
 
 router.get('/items', authorize(allowedGroups), validateQuery(itemQuerySchema), getItemsHandler);
-router.get('/items/:itemId', authorize(allowedGroups), validateParams(itemIdSchema), getItemByIdHandler);
+router.get('/items/:itemId', authorize(allowedGroups), validateParams(itemPathSchema), getItemByIdHandler);
 router.post('/items', authorize(allowedGroups), validateBody(itemPostDtoSchema), createItemHandler);
 router.put(
   '/items/:itemId',
   authorize(allowedGroups),
-  validateParams(itemIdSchema),
+  validateParams(itemPathSchema),
   validateBody(itemPutDtoSchema),
   updateItemHandler,
 );
-router.delete('/items/:itemId', authorize(allowedGroups), validateParams(itemIdSchema), deleteItemHandler);
+router.delete('/items/:itemId', authorize(allowedGroups), validateParams(itemPathSchema), deleteItemHandler);
 
 export default router;
 ```
@@ -55,3 +51,6 @@ export default router;
 - For public routes (e.g. health check or token-based share-link routes), register them on the app bootstrap or a public router without `authorize()`
 - If the app mounts routers under `/v1`, keep route modules aligned with that prefixing strategy
 - Mount the router from one centralized bootstrap or route-composition layer
+
+The app example mounts this router at `/v1`, so the resulting paths are `/v1/items` and `/v1/items/:itemId`. Do not mount it at
+`/v1/items` again. Preserve another established prefix convention consistently across app, router, Location headers, and tests.

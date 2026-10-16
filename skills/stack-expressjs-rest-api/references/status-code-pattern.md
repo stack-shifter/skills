@@ -1,10 +1,6 @@
 # Status Code Pattern
 
-Use this reference when you need a reusable status-code pattern.
-
-## Goal
-
-Create a typed `StatusCode` enum or equivalent shared constant map so HTTP status codes are never written as magic numbers in controllers or middleware.
+Reuse the project's shared HTTP status constants. When none exist, this enum provides a readable baseline; add only the codes needed.
 
 ## Baseline Example
 
