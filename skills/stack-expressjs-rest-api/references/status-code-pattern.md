@@ -40,25 +40,27 @@ export enum StatusCode {
 
 ```ts
 import { StatusCode } from '../utilities/status-code';
+import { sendProblem } from '../utilities/problem-response';
 
 // In a controller
 response.status(StatusCode.OK).json(item);
 response.status(StatusCode.CREATED).json(item);
 response.status(StatusCode.NO_CONTENT).end();
-response.status(StatusCode.NOT_FOUND).json(errorResponse);
-response.status(StatusCode.CONFLICT).json(errorResponse);
-response.status(StatusCode.INTERNAL_SERVER_ERROR).json(errorResponse);
+sendProblem(response, StatusCode.NOT_FOUND, 'Safe public explanation.');
+sendProblem(response, StatusCode.CONFLICT, 'Safe public explanation.');
+sendProblem(response, StatusCode.INTERNAL_SERVER_ERROR, 'Safe public explanation.');
 
 // In middleware
-response.status(StatusCode.UNAUTHORIZED).json(errorResponse);
-response.status(StatusCode.FORBIDDEN).json(errorResponse);
-response.status(StatusCode.BAD_REQUEST).json(errorResponse);
+sendProblem(response, StatusCode.UNAUTHORIZED, 'Safe public explanation.');
+sendProblem(response, StatusCode.FORBIDDEN, 'Safe public explanation.');
+sendProblem(response, StatusCode.BAD_REQUEST, 'Safe public explanation.');
 ```
 
 ## Guidance
 
 - If the repository already has shared status constants, use them.
 - If it does not, introduce one shared status-code module instead of repeating numeric literals.
-- Import `StatusCode` in every controller, middleware, and service that sets HTTP status
-- Pair with `ErrorResponseBuilder` from `references/error-pattern.md` for consistent error bodies
+- Use shared status constants at HTTP boundaries; keep HTTP status handling out of domain/persistence services.
+- For new error contracts, use `sendProblem` from [error-pattern.md](error-pattern.md); preserve existing builders and envelopes in established APIs.
+- Authentication failures also preserve required challenge headers, as shown in [middleware-pattern.md](middleware-pattern.md).
 - Add additional codes as the project needs them; keep the enum the single source of truth

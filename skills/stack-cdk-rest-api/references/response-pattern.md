@@ -1,86 +1,164 @@
 # Response Pattern
 
-Use this reference when you need a reusable API response pattern for controllers and middleware.
+Reuse the project's response helper. For new error contracts, prefer RFC 9457 Problem Details; preserve established APIs until an explicit
+migration is requested. Read [problem-details.md](problem-details.md) for standard members, optional extensions, and safety boundaries.
 
-## Goal
+## Storm Responses
 
-Return consistent API Gateway proxy responses from controllers and middleware: stable status codes, CORS headers, and a uniform error body shape across all endpoints.
+When installed, inspect `@stack-shifter/storm-stack/framework` exports, types, and tests first. The reviewed interface has lowercase
+`ok`, `created`, `noContent`, `badRequest`, `unauthorized`, `forbidden`, `notFound`, `conflict`, and `internalServerError` methods. Project-local
+PascalCase helpers and `fromPersistenceError` are separate interfaces; do not assume Storm provides them. Do not import CDK through the
+root package or bypass exports with deep imports. Do not install Storm merely for response formatting.
 
-## When to Use
-
-Load this reference when the repository does not already have a `RestResult`-style helper, or when you need to understand the full method surface of the existing one.
-
-If the repository already has a `RestResult` class, use it — do not build a parallel response helper.
-
-## Project-Local RestResult Class Shape
-
-For this project-local pattern, use `RestResult` as a class of static factory methods. Each method returns an `APIGatewayProxyResult` with consistent headers. CORS origin is read from `process.env.CORS_ORIGIN` at call time, defaulting to `'*'`.
-
-### Success Methods
+The examples assume the reviewed `RestResult` signature and an application-configured `corsOrigin`. Storm owns the Problem Details body,
+serialization, HTTP status, and headers; application code supplies safe detail text and optional extensions.
 
 ```ts
-RestResult.Ok(body: object)
-RestResult.Accepted(body: object)
-RestResult.NoContent()
-RestResult.Created(body, resourceRoute)
-RestResult.File(base64Body: string)
-RestResult.MovedPermanently(newLocation)
+import { RestResult } from '@stack-shifter/storm-stack/framework';
+
+const corsOrigin = 'https://app.example.com'; // Supplied by the project's configuration in application code.
+
+const response = RestResult.badRequest('Invalid request body.', {
+  origin: corsOrigin,
+  extensions: {
+    reason: 'InvalidFields',
+    fields: { mileage: ['Enter a non-negative whole-mile value.'] },
+  },
+});
 ```
 
-### Error Methods
+Resulting response:
 
-```ts
-RestResult.BadRequest(message, details?)
-RestResult.Unauthorized(message)
-RestResult.Forbidden(message)
-RestResult.NotFound(message)
-RestResult.Conflict(message)
-RestResult.InternalServerError(message)
-RestResult.BadGateway(message)
-RestResult.GatewayTimeout(message)
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/problem+json
+Access-Control-Allow-Origin: https://app.example.com
 ```
-
-### Persistence Error Bridge
-
-`fromPersistenceError(error: unknown): APIGatewayProxyResult | null` can map recognized repository-layer conflicts to HTTP responses so controllers do not need to inspect raw error shapes. Returns `null` for unrecognized errors so the caller can fall through to a generic 500.
-
-```ts
-try {
-    await repository.save(item);
-} catch (error) {
-    const response = RestResult.fromPersistenceError(error);
-    if (response) return response;
-    return RestResult.InternalServerError("Unexpected error.");
-}
-```
-
-Possible mappings:
-
-| Error signal | Response |
-|---|---|
-| uniqueness violation from the repository layer | 409 Conflict |
-| invalid reference or missing related record | 400 BadRequest |
-
-## Error Body Shape
-
-For a new API adopting this example contract, error responses follow this envelope. Preserve an existing API’s envelope instead:
 
 ```json
 {
-    "type": "VALIDATION_ERROR",
-    "message": "Human-readable message",
-    "status": 400,
-    "details": { "field": "optional context" }
+  "type": "about:blank",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "Invalid request body.",
+  "reason": "InvalidFields",
+  "fields": { "mileage": ["Enter a non-negative whole-mile value."] }
 }
 ```
 
-## Guidance
+`extensions` is a helper argument. Its members appear at the top level of the response, not inside an `extensions` property. Preserve
+custom type URIs and instance behavior through the installed helper's actual options. Do not override the problem content type through
+header options. Pass configured CORS on controller and middleware failures; preserve authentication challenges and other required headers.
 
-- Prefer one shared response helper over repeated inline `APIGatewayProxyResult` literals.
-- Put repository-level conflict translation in `RestResult` or a dedicated helper so controllers stay small.
-- Add only the methods the feature actually needs.
-- Keep response helpers repository-agnostic.
+Success responses keep the existing contract. For the reviewed Storm interface:
 
-## Storm Compatibility
+```ts
+RestResult.ok({ id: 'example' }, { origin: corsOrigin });
+RestResult.created({ id: 'example' }, { origin: corsOrigin, location: '/items/example' });
+RestResult.noContent({ origin: corsOrigin });
+```
 
-Storm’s `RestResult` is a separate interface. Verify its installed methods and signatures; do not assume the project-local methods above exist in the library. The reviewed library uses problem-detail error bodies and `application/problem+json`. Switching helpers must not silently change status codes, error bodies, CORS behavior, or headers. Check parser, validation, and authorization failures as well as controller responses.
+## Expected Domain Errors
+
+These excerpts assume existing `UserNotFoundError`/`UnitConflictError` classes that guarantee safe public messages, a `userService`, and a
+project logger that redacts diagnostics. Services/repositories throw domain errors; controllers or the existing boundary mapper own HTTP
+translation. Preserve an existing mapper rather than repeating mappings throughout controllers.
+
+```ts
+try {
+  const updated = await userService.update(userId, input);
+  return RestResult.ok(updated, { origin: corsOrigin });
+} catch (error: unknown) {
+  if (error instanceof UserNotFoundError) {
+    return RestResult.notFound(error.message, {
+      origin: corsOrigin,
+      extensions: { reason: 'UserNotFound' },
+    });
+  }
+
+  // The project's logger must redact error objects before writing them.
+  loggerService.error(
+    'Unable to update user.',
+    error instanceof Error ? error : new Error('Unknown update failure.'),
+  );
+  return RestResult.internalServerError('Unable to update user.', { origin: corsOrigin });
+}
+```
+
+A controller whose operation can produce the existing `UnitConflictError` can map it before its generic fallback:
+
+```ts
+if (error instanceof UnitConflictError) {
+  return RestResult.conflict(error.message, {
+    origin: corsOrigin,
+    extensions: { reason: 'UnitConflict', fields: { unit: [error.message] } },
+  });
+}
+```
+
+Do not return arbitrary database/SDK error messages. Keep intentional 404 responses for unauthorized resources. Upload ownership and parent
+record permissions are separate checks; validate access before including upload identifiers:
+
+```ts
+return RestResult.badRequest('One or more uploads are unavailable.', {
+  origin: corsOrigin,
+  extensions: { reason: 'UploadInvalid', files: { [uploadId]: ['Upload is unavailable.'] } },
+});
+```
+
+## Project-Local Fallback Without Storm
+
+If no suitable helper exists, add only the function needed by the new contract. This example assumes Node.js and `@types/aws-lambda`.
+It uses an explicit configured origin rather than introducing a wildcard fallback. Preserve the project's complete CORS/credentials policy.
+The helper supports the demonstrated `about:blank` contract; reuse existing handling for custom types/instances when present.
+
+```ts
+// src/utilities/problem-response.ts
+import { STATUS_CODES } from 'node:http';
+import type { APIGatewayProxyResult } from 'aws-lambda';
+
+type ProblemExtensions = {
+  reason?: string;
+  fields?: Record<string, string[]>;
+  files?: Record<string, string[]>;
+};
+
+export const problemResult = (
+  statusCode: number,
+  detail: string,
+  origin: string,
+  extensions: ProblemExtensions = {},
+  headers: Record<string, string> = {},
+): APIGatewayProxyResult => ({
+  statusCode,
+  headers: {
+    ...headers,
+    'Access-Control-Allow-Origin': origin,
+    'Content-Type': 'application/problem+json',
+  },
+  body: JSON.stringify({
+    ...extensions,
+    type: 'about:blank',
+    title: STATUS_CODES[statusCode] ?? 'HTTP Error',
+    status: statusCode,
+    detail,
+  }),
+});
+```
+
+Use application-selected 4xx/5xx statuses, never arbitrary status values from unknown errors. Header inputs are trusted application
+configuration; do not supply conflicting case variants of Content-Type or CORS headers. Extensions cannot override standard body members.
+Existing success helpers continue returning their own JSON/bodyless responses.
+
+## Existing Project-Local Helpers
+
+An established `RestResult.Ok`, `Created`, `NoContent`, `BadRequest`, or similar interface may use a custom `type`/`message`/`details`
+envelope. Preserve it when extending the API. Changing to Storm's lowercase methods and Problem Details is a contract migration, including
+content type, reasons, field keys, CORS, and headers. Do not mix old and new contracts accidentally.
+
+If `fromPersistenceError(error)` already exists, preserve its domain mapping; otherwise map typed domain errors at the existing HTTP
+boundary. Repositories should translate driver-specific failures into domain errors without building HTTP responses. Add only the methods
+required by the feature; keep response helpers free of persistence imports and error registries.
+
+API Gateway authorizers, throttling, and upstream proxies may emit separate responses. Inspect those layers before claiming uniform
+Problem Details coverage, and keep infrastructure changes/deployment outside scope unless authorized.

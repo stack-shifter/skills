@@ -1,9 +1,9 @@
 ---
 name: stack-cdk-rest-api
 description:
-    Design and implement AWS CDK REST APIs using Storm when installed or Storm-style project-local constructs, with project-local
-    application structure. Use for API Gateway REST routes, Lambda handlers, Cognito authorization, request validation, middleware, runtime
-    composition, reusable API constructs, and related scheduled jobs.
+  Design and implement AWS CDK REST APIs using Storm when installed or Storm-style project-local constructs, with project-local
+  application structure. Use for API Gateway REST routes, Lambda handlers, Cognito authorization, request validation, middleware, runtime
+  composition, RFC 9457 Problem Details and safe error handling, reusable API constructs, and related scheduled jobs.
 ---
 
 ## Purpose
@@ -48,6 +48,17 @@ Use this order:
 3. the patterns and examples in this skill’s references
 
 If the local code differs from this skill's examples, follow local code and use the examples only as design guidance.
+
+## Error Contracts
+
+Inspect existing helpers, middleware, callers, and tests before changing error responses. For new contracts, prefer RFC 9457 Problem
+Details. Preserve established envelopes, status codes, reasons, type URIs, validation keys, authentication headers, CORS, and success
+responses; adopting Problem Details for an existing API is an explicit contract migration. Reuse native support or existing helpers;
+avoid a parallel error framework, registry, or unnecessary classes.
+
+Trace malformed/missing input, body/query/path validation, expected domain failures, authentication/authorization, and unexpected failures
+through their owning layers. Use safe public messages and stable application identifiers. Preserve intentional not-found responses that
+hide unauthorized resources. Keep transport mapping out of services/repositories where those boundaries already exist.
 
 ## Repository Discovery
 
@@ -187,7 +198,8 @@ Load only what the task needs:
 - `references/importer-pattern.md`: existing resource references.
 - `references/auth-pattern.md`: Gateway authentication, scopes, and application authorization.
 - `references/middleware-pattern.md`: parsing, validation outputs, and failure translation.
-- `references/response-pattern.md`: response contracts and library compatibility.
+- `references/response-pattern.md`: Storm and project-local Problem Details responses, expected errors, and library compatibility.
+- `references/problem-details.md`: RFC members, optional extensions, validation mapping, and safety boundaries.
 - `references/runtime-composition-pattern.md`: module-scope clients and application dependencies.
 - `references/persistence-boundary-pattern.md`: repository isolation and shared context composition.
 - `references/services-pattern.md`: integrations and mapping.

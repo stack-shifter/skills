@@ -26,12 +26,12 @@ export const itemQuerySchema = z.object({
 });
 
 export const itemPostDtoSchema = z.object({
-  name: z.string().trim().min(1).max(128),
+  name: z.string().trim().min(1, 'Enter a name.').max(128, 'Use at most 128 characters.'),
 });
 
 export const itemPutDtoSchema = z.object({
   id: z.uuid(),
-  name: z.string().trim().min(1).max(128),
+  name: z.string().trim().min(1, 'Enter a name.').max(128, 'Use at most 128 characters.'),
 });
 
 export type ItemPath = z.output<typeof itemPathSchema>;
@@ -40,6 +40,7 @@ export type ItemPostDto = z.output<typeof itemPostDtoSchema>;
 export type ItemPutDto = z.output<typeof itemPutDtoSchema>;
 ```
 
+- Use safe explicit validation messages when returning schema issues. Never include sensitive rejected values in public messages.
 - Store parsed output in `response.locals.validated` and consume it in the controller. `safeParse()` does not update the original input.
 - Keep one schema per validation target. Check repeated/nested query inputs against the actual parser configuration; do not assume a string.
 - Defaults, coercions, and transforms are behavior: test that the resulting number, trimmed name, or default reaches application logic.

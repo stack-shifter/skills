@@ -1,6 +1,10 @@
 # Error Pattern
 
-Reuse shared error classes and response formatting. These examples keep error names explicit and preserve a common HTTP payload.
+Reuse existing error classes, native support, and response formatting. For a new contract, use the small Problem Details function below.
+Preserve an existing `ErrorResponseBuilder`, `ErrorType`, and custom envelope when extending an established API; do not silently convert
+`message`/`details` into `detail`/`fields` or reinterpret its `type` codes as RFC problem types.
+
+Read [problem-details.md](problem-details.md) for RFC rules, optional application extensions, safe validation mapping, and auth boundaries.
 
 ## Error Classes
 
@@ -78,84 +82,57 @@ export class ConflictError extends Error {
 }
 ```
 
-## Error Response Model
+## Problem Response Function
+
+Assumes Express 5 and Node.js. This is a project-local function for new contracts when no existing helper is suitable. CORS is owned by
+app middleware mounted before parsing/authentication; the function preserves headers already set on the response.
+The connected examples use `about:blank`. Preserve custom type URIs/instance handling through an existing helper when the project has them.
 
 ```ts
-// src/models/entities/error.model.ts
-import { StatusCode } from '../../utilities/status-code';
+// src/utilities/problem-response.ts
+import { STATUS_CODES } from 'node:http';
+import type { Response } from 'express';
 
-export type ErrorResponse = {
-  type: ErrorType;
-  message: string;
-  status?: StatusCode;
-  details?: Record<string, unknown>;
+export type ProblemExtensions = {
+  reason?: string;
+  fields?: Record<string, string[]>;
+  files?: Record<string, string[]>;
 };
 
-export enum ErrorType {
-  VALIDATION_ERROR = 'ValidationError',
-  NOT_FOUND_ERROR = 'NotFoundError',
-  EXISTS_ERROR = 'ExistsError',
-  UNAUTHORIZED_ERROR = 'UnauthorizedError',
-  FORBIDDEN_ERROR = 'ForbiddenError',
-  INTERNAL_SERVER_ERROR = 'InternalServerError',
-  PASSWORD_SET_ERROR = 'PasswordError',
-  CONFLICT_ERROR = 'ConflictError',
-  BAD_GATEWAY_ERROR = 'BadGatewayError',
-  GATEWAY_TIMEOUT_ERROR = 'GatewayTimeoutError',
-}
+export type ProblemDetails = ProblemExtensions & {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  instance?: string;
+};
 
-export class ErrorResponseBuilder {
-  private readonly errorResponse: ErrorResponse;
+export const sendProblem = (
+  response: Response,
+  status: number,
+  detail: string,
+  extensions: ProblemExtensions = {},
+): void => {
+  const problem: ProblemDetails = {
+    ...extensions,
+    type: 'about:blank',
+    title: STATUS_CODES[status] ?? 'HTTP Error',
+    status,
+    detail,
+  };
 
-  constructor() {
-    this.errorResponse = {
-      type: ErrorType.INTERNAL_SERVER_ERROR,
-      status: StatusCode.INTERNAL_SERVER_ERROR,
-      message: '',
-    };
-  }
-
-  setType(type: ErrorType): this {
-    this.errorResponse.type = type;
-    return this;
-  }
-
-  setStatus(status: StatusCode): this {
-    this.errorResponse.status = status;
-    return this;
-  }
-
-  setMessage(message: string): this {
-    this.errorResponse.message = message;
-    return this;
-  }
-
-  setDetails(details: Record<string, unknown>): this {
-    this.errorResponse.details = details;
-    return this;
-  }
-
-  build(): ErrorResponse {
-    return this.errorResponse;
-  }
-}
+  response.status(status).type('application/problem+json').json(problem);
+};
 ```
+
+Supply only application-selected 4xx/5xx statuses; never trust an arbitrary exception's status. No response builder or type registry is
+needed. Standard members follow extensions so they cannot be overwritten at runtime. Success responses keep their existing format.
 
 ## Global Error Mapping
 
-Use the complete `globalErrorHandler` example in [middleware-pattern.md](middleware-pattern.md). It maps the shared errors above and parser
-failures to the existing response model. Keep it as a fallback when local controllers already translate known errors; avoid double mapping.
+Use the complete `globalErrorHandler` in [middleware-pattern.md](middleware-pattern.md). It maps shared errors and known parser failures
+and remains the fallback when controllers translate expected errors locally. Avoid double mapping and double sends.
 
-## Guidance
-
-- Set `this.name` explicitly for diagnostics. Use the repository's established error identification; the connected examples use `instanceof`
-  for application errors and narrow parser-error metadata. Do not trust arbitrary error messages or accept any supplied status code.
-- If the repository already has typed errors or an error mapper, extend it instead of introducing a second hierarchy.
-- If it does not, centralize HTTP mapping in one place instead of repeating the same response shapes across controllers.
-- If controllers already use `ErrorResponseBuilder` in local `try/catch` blocks for known errors, preserve that approach and let the global handler remain the fallback for unexpected failures
-- Add domain-specific error subclasses (e.g. `GroupNotFoundError extends IdentityError`) as needed rather than reusing generic errors
-- `ErrorResponseBuilder` uses a fluent builder pattern; chain `setType`, `setStatus`, `setMessage`, and optionally `setDetails` before calling `build()`
-- Keep `ErrorType` enum values as human-readable strings — they appear in API responses
-
-Preserve error bodies, status codes, headers, and pagination contracts. Return safe client messages for unexpected failures; log internal
-details through the existing logger without exposing tokens, credentials, raw request bodies, or stack traces in responses.
+Set explicit error names for diagnostics and use the established identification mechanism. The examples use `instanceof` for application
+errors and narrow parser metadata. Only the validation/auth/not-found/conflict classes in this example promise safe public messages;
+`DatabaseError` and unknown exceptions always receive a generic response. Add classes only when callers need to distinguish their behavior.

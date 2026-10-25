@@ -77,35 +77,26 @@ body, params, and query in `response.locals.validated`; do not duplicate them on
 ## Parsed Request Validation
 
 Keep three small middleware functions so route composition is easy to read. Merge targets into `validated` so body validation does not erase
-previously validated path parameters. Do not assign to `request.query` in Express 5.
+previously validated path parameters. Do not assign to `request.query` in Express 5. These examples use the Problem Details helper in
+[error-pattern.md](error-pattern.md) and formatter in [problem-details.md](problem-details.md). Keep explicit safe schema messages.
+`express.json()` owns JSON parsing; validation reads its output, including undefined for a missing body.
 
 ```ts
 // src/middlewares/validation.middleware.ts
 import type { RequestHandler } from 'express';
 import { z } from 'zod/v4';
-import { ErrorResponseBuilder, ErrorType } from '../models/entities/error.model';
+import { sendProblem } from '../utilities/problem-response';
 import { StatusCode } from '../utilities/status-code';
-
-const formatZodIssues = (issues: z.core.$ZodIssue[]): Record<string, string> => {
-  const details: Record<string, string> = {};
-  for (const issue of issues) {
-    details[issue.path.join('.') || 'request'] = issue.message;
-  }
-  return details;
-};
+import { formatZodIssues } from '../utilities/validation';
 
 export const validateBody = (schema: z.ZodType): RequestHandler =>
   (request, response, next): void => {
     const result = schema.safeParse(request.body);
     if (!result.success) {
-      response.status(StatusCode.BAD_REQUEST).json(
-        new ErrorResponseBuilder()
-          .setType(ErrorType.VALIDATION_ERROR)
-          .setStatus(StatusCode.BAD_REQUEST)
-          .setMessage('Invalid request body')
-          .setDetails(formatZodIssues(result.error.issues))
-          .build(),
-      );
+      sendProblem(response, StatusCode.BAD_REQUEST, 'Invalid request body', {
+        reason: 'InvalidFields',
+        fields: formatZodIssues(result.error.issues),
+      });
       return;
     }
     response.locals.validated = { ...response.locals.validated, body: result.data };
@@ -116,14 +107,10 @@ export const validateQuery = (schema: z.ZodType): RequestHandler =>
   (request, response, next): void => {
     const result = schema.safeParse(request.query);
     if (!result.success) {
-      response.status(StatusCode.BAD_REQUEST).json(
-        new ErrorResponseBuilder()
-          .setType(ErrorType.VALIDATION_ERROR)
-          .setStatus(StatusCode.BAD_REQUEST)
-          .setMessage('Invalid query parameters')
-          .setDetails(formatZodIssues(result.error.issues))
-          .build(),
-      );
+      sendProblem(response, StatusCode.BAD_REQUEST, 'Invalid query parameters', {
+        reason: 'InvalidFields',
+        fields: formatZodIssues(result.error.issues),
+      });
       return;
     }
     response.locals.validated = { ...response.locals.validated, query: result.data };
@@ -134,14 +121,10 @@ export const validateParams = (schema: z.ZodType): RequestHandler =>
   (request, response, next): void => {
     const result = schema.safeParse(request.params);
     if (!result.success) {
-      response.status(StatusCode.BAD_REQUEST).json(
-        new ErrorResponseBuilder()
-          .setType(ErrorType.VALIDATION_ERROR)
-          .setStatus(StatusCode.BAD_REQUEST)
-          .setMessage('Invalid parameters')
-          .setDetails(formatZodIssues(result.error.issues))
-          .build(),
-      );
+      sendProblem(response, StatusCode.BAD_REQUEST, 'Invalid parameters', {
+        reason: 'InvalidFields',
+        fields: formatZodIssues(result.error.issues),
+      });
       return;
     }
     response.locals.validated = { ...response.locals.validated, params: result.data };
@@ -157,12 +140,13 @@ path. A TypeScript assertion is not validation or coercion.
 
 Express 5 forwards rejected async handlers to error middleware. Keep all four parameters and delegate when headers were already sent.
 Malformed JSON fails in `express.json()` before route validation; identify its parser metadata rather than treating every `SyntaxError` as
-bad user input. Add other parser failures only when relevant to the API contract.
+bad user input. Add other parser failures only when relevant to the API contract. The mapped domain errors below guarantee safe public
+messages; unknown exceptions do not. Preserve existing reasons and authentication challenges instead of adopting the illustrative ones.
 
 ```ts
 // src/middlewares/global-error.middleware.ts
 import type { ErrorRequestHandler } from 'express';
-import { ErrorResponseBuilder, ErrorType } from '../models/entities/error.model';
+import { sendProblem } from '../utilities/problem-response';
 import {
   AuthenticationError, AuthorizationError, ConflictError, NotFoundError, ValidationError,
 } from '../utilities/errors';
@@ -175,7 +159,7 @@ export const globalErrorHandler: ErrorRequestHandler = (error: unknown, _request
   }
 
   let status = StatusCode.INTERNAL_SERVER_ERROR;
-  let type = ErrorType.INTERNAL_SERVER_ERROR;
+  let reason: string | undefined;
   let message = 'An unexpected error occurred';
 
   const malformedJson = error instanceof SyntaxError
@@ -184,38 +168,37 @@ export const globalErrorHandler: ErrorRequestHandler = (error: unknown, _request
 
   if (malformedJson) {
     status = StatusCode.BAD_REQUEST;
-    type = ErrorType.VALIDATION_ERROR;
+    reason = 'InvalidRequest';
     message = 'Malformed JSON body';
   } else if (error instanceof ValidationError) {
     status = StatusCode.BAD_REQUEST;
-    type = ErrorType.VALIDATION_ERROR;
+    reason = 'InvalidFields';
     message = error.message;
   } else if (error instanceof AuthenticationError) {
     status = StatusCode.UNAUTHORIZED;
-    type = ErrorType.UNAUTHORIZED_ERROR;
+    reason = 'AuthenticationRequired';
+    response.set('WWW-Authenticate', 'Bearer');
     message = error.message;
   } else if (error instanceof AuthorizationError) {
     status = StatusCode.FORBIDDEN;
-    type = ErrorType.FORBIDDEN_ERROR;
+    reason = 'PermissionDenied';
     message = error.message;
   } else if (error instanceof NotFoundError) {
     status = StatusCode.NOT_FOUND;
-    type = ErrorType.NOT_FOUND_ERROR;
+    reason = 'NotFound';
     message = error.message;
   } else if (error instanceof ConflictError) {
     status = StatusCode.CONFLICT;
-    type = ErrorType.CONFLICT_ERROR;
+    reason = 'Conflict';
     message = error.message;
   }
 
   if (status === StatusCode.INTERNAL_SERVER_ERROR) {
-    // Use the existing logger and its redaction rules in a real application.
-    console.error('Unexpected request failure', error);
+    // Replace with the existing redacting logger; raw exceptions may contain sensitive data.
+    console.error('Unexpected request failure');
   }
 
-  response.status(status).json(
-    new ErrorResponseBuilder().setType(type).setStatus(status).setMessage(message).build(),
-  );
+  sendProblem(response, status, message, reason ? { reason } : {});
 };
 ```
 

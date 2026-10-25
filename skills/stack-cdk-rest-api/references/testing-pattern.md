@@ -88,3 +88,24 @@ try {
 
 `exerciseExpectedFailure` represents the operation under test. Assert its observable failure result as well; a log assertion alone is not
 behavior coverage. The suite's normal unexpected-log guard remains active for other tests.
+
+## Error Contract Coverage
+
+For an existing API, assert its established envelope and identifiers; do not migrate them to satisfy these examples. When Problem Details
+is used, exercise these observable responses with real middleware and the existing runner:
+
+- HTTP status matches body `status` when present; content type is `application/problem+json` (allow a charset parameter).
+- Configured CORS is present on application errors, including parsing, validation, authorization, and unexpected failures.
+- Missing body, malformed JSON, and body/query/path schema failures retain the agreed statuses and optional extensions.
+- Field messages preserve multiple issues, nested/array paths such as `items.0.name`, root-level issues, and dictionary keys such as
+  `__proto__`. Use safe fixture messages and verify rejected sensitive values are absent.
+- Parsed/coerced/defaulted values reach controllers; JSON is parsed once. Failed validation does not execute business logic.
+- Expected not-found/conflict reasons remain stable; fields/files appear only when relevant and access has been checked.
+- Authentication/permission failures retain 401/403 or intentional 404 and required authentication headers. No unauthorized writes or
+  sensitive resource disclosures occur.
+- Unexpected exceptions produce safe generic 500 details; responses contain no stack traces, driver/SDK details, credentials, or sensitive
+  rejected values. Scope expected-log spies to their test and assert redaction; do not globally mute logs.
+- Success envelopes, Location headers, pagination, and bodyless 204 responses remain unchanged.
+
+Use local deterministic fixtures and mocked external boundaries. Keep the parser/auth/error middleware under test real instead of replacing
+it with a broad mock. Record deployed authorizer, Gateway/proxy, and live integration behavior as unverified unless separately checked.

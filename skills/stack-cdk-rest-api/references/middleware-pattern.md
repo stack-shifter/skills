@@ -78,16 +78,19 @@ without the appropriate task authorization.
 ### Parsed Query Output Example
 
 This standalone Middy example validates a query once, preserves its numeric conversion/default, and consumes that output in the controller.
-Compose the project's authorization and error middleware around it as required.
+Compose the project's authorization and error middleware around it as required. It imports the project-local Zod issue formatter from
+[problem-details.md](problem-details.md); use the installed Zod import style and safe explicit schema messages.
 
 ```ts
 import middy from '@middy/core';
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { RestResult } from '@stack-shifter/storm-stack/framework';
 import { z } from 'zod';
+import { formatZodIssues } from '../utilities/validation';
 
 const recordsQuerySchema = z.object({
-	page: z.coerce.number().int().min(1).max(Number.MAX_SAFE_INTEGER).default(1),
+	page: z.coerce.number().int('Enter a whole page number.').min(1, 'Page must be at least 1.')
+		.max(Number.MAX_SAFE_INTEGER, 'Page is too large.').default(1),
 });
 
 type RecordsQuery = z.output<typeof recordsQuerySchema>;
@@ -98,7 +101,10 @@ export const createRecordsHandler = (corsOrigin: string) => {
 			const result = recordsQuerySchema.safeParse(event.queryStringParameters ?? {});
 
 			if (!result.success) {
-				return RestResult.badRequest('Invalid query parameters.', { origin: corsOrigin });
+				return RestResult.badRequest('Invalid query parameters.', {
+					origin: corsOrigin,
+					extensions: { reason: 'InvalidFields', fields: formatZodIssues(result.error.issues) },
+				});
 			}
 
 			// Replace raw strings with Zod's converted values and defaults for the controller.
@@ -143,3 +149,39 @@ minimal error response with the project's stable reason and field-error contract
   content-type checks enabled unless another boundary validator owns that check. Preserve the project's accepted content-type contract.
 - Verify error middleware ordering against the installed version so parser and middleware exceptions use the same `RestResult` contract as
   controllers.
+
+## Final Unexpected-Failure Fallback
+
+This factory assumes the reviewed Storm interface, installed Middy types, an application-configured origin, and the project's redacting
+logger. Compose it so expected parser, validation, authentication, and domain failures have already been handled. It preserves a response
+already produced by an earlier error mapper; it cannot classify errors on its own.
+
+```ts
+import type middy from '@middy/core';
+import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { RestResult } from '@stack-shifter/storm-stack/framework';
+
+export const unexpectedFailure = (
+  corsOrigin: string,
+  loggerService: { error: (message: string, error: Error) => void },
+): middy.MiddlewareObj<APIGatewayProxyEvent, APIGatewayProxyResult> => ({
+  onError: (request): APIGatewayProxyResult => {
+    if (request.response) return request.response;
+
+    const error = request.error instanceof Error
+      ? request.error
+      : new Error('Unknown request failure.');
+
+    // This logger must redact exception metadata, tokens, credentials, and sensitive bodies.
+    loggerService.error('Unhandled API request failure.', error);
+    return RestResult.internalServerError('Unable to process the request.', { origin: corsOrigin });
+  },
+});
+```
+
+Middy error hooks execute in reverse registration order; verify this against the installed version and ensure expected-error mappers run
+before this fallback. Do not add a second fallback when `handleHttpError()` already owns the same behavior. Verify parser failures retain
+the agreed 4xx status and auth failures retain 401/403 and required challenge headers. Never infer that all malformed requests need fields.
+See [Middy error handling](https://middy.js.org/docs/intro/handling-errors/). Returning a 500 proxy response after logging does not itself
+make the Lambda invocation fail or necessarily increment Lambda Errors. See [problem-details.md](problem-details.md) for infrastructure
+and safe logging boundaries.

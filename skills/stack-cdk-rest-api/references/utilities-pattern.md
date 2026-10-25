@@ -15,10 +15,12 @@ Centralize pure reusable helpers so handlers and controllers stay consistent.
 
 ## Baseline `RestResult` Rules
 
-- set `Content-Type: application/json`
-- set consistent CORS headers
-- expose `Ok`, `Created`, `NoContent`, `BadRequest`, `NotFound`, `Unauthorized`, `Forbidden`, and `InternalServerError`
-- include `fromPersistenceError(error)` when repository-level conflict mapping is needed
+- Preserve existing helpers and public contracts; see [response-pattern.md](response-pattern.md) before changing interfaces.
+- For new contracts, serialize errors as `application/problem+json`; JSON success responses use `application/json`, and 204 stays bodyless.
+- Set configured CORS headers on application errors, including middleware failures; preserve required authentication headers.
+- With Storm, verify the installed lowercase factory methods and options. Project-local PascalCase methods are a separate interface.
+- Keep HTTP mapping at the existing controller/utility boundary. Repositories translate persistence failures into domain errors, not HTTP.
+- Reuse an existing `fromPersistenceError(error)` bridge when present rather than introducing another mapper.
 
 ## Cursor and Pagination Helpers
 
@@ -69,7 +71,7 @@ async list(params: ListProjectsParams): Promise<PagedResult<IProject>> {
 ## Guidance
 
 - Prefer one shared response helper over repeated inline `APIGatewayProxyResult` objects.
-- Put persistence-error translation in `RestResult` or a dedicated utility so controllers stay small.
+- Keep driver-specific translation in repositories and HTTP translation at the existing boundary; avoid persistence imports in response helpers.
 - Keep utility functions pure where possible.
 - Use custom error classes only when callers handle them differently from generic errors.
 - Put `encodeCursor` / `decodeCursor` in a shared utility when more than one repository uses cursor pagination; keep the encoded cursor shape stable across deploys.

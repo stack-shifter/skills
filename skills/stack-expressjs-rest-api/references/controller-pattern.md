@@ -8,7 +8,8 @@ forward unexpected async failures automatically.
 
 Route middleware validates the corresponding target before each handler. Use plain `RequestHandler` declarations and name the DTO type
 where the validated value is read. These annotations describe middleware output; they do not perform runtime validation. Successful writes
-return the existing response contract, including Location and bodyless 204 responses.
+return the existing response contract, including Location and bodyless 204 responses. Error examples assume the new Problem Details
+contract in [error-pattern.md](error-pattern.md); preserve established local envelopes instead when extending an existing API.
 
 ```ts
 // src/controllers/item.controller.ts
@@ -17,7 +18,7 @@ import { dbContext } from '../dependencies/app.dependencies';
 import type {
   ItemPath, ItemQuery, ItemPostDto, ItemPutDto,
 } from '../models/validation/item.validation';
-import { ErrorResponseBuilder, ErrorType } from '../models/entities/error.model';
+import { sendProblem } from '../utilities/problem-response';
 import { NotFoundError, ValidationError } from '../utilities/errors';
 import { StatusCode } from '../utilities/status-code';
 
@@ -40,13 +41,8 @@ export const getItemByIdHandler: RequestHandler = async (
   } catch (error: unknown) {
     // Keep local error shaping when established; let the global handler cover other failures.
     if (error instanceof NotFoundError) {
-      response.status(StatusCode.NOT_FOUND).json(
-        new ErrorResponseBuilder()
-          .setType(ErrorType.NOT_FOUND_ERROR)
-          .setStatus(StatusCode.NOT_FOUND)
-          .setMessage(error.message)
-          .build(),
-      );
+      // This domain error guarantees a safe public message.
+      sendProblem(response, StatusCode.NOT_FOUND, error.message, { reason: 'ItemNotFound' });
       return;
     }
     next(error);

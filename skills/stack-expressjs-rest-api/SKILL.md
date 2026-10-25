@@ -1,6 +1,6 @@
 ---
 name: stack-expressjs-rest-api
-description: Design and implement Express 5 REST APIs with TypeScript, following existing project patterns. Use for routes, controllers, middleware, validation, authentication, services, repositories, runtime composition, and optional Lambda Web Functions deployment.
+description: Design and implement Express 5 REST APIs with TypeScript, following existing project patterns. Use for routes, controllers, middleware, validation, authentication, services, repositories, runtime composition, RFC 9457 Problem Details and safe error handling, and optional Lambda Web Functions deployment.
 ---
 
 ## Purpose
@@ -14,6 +14,17 @@ Deliver working Express API changes using this order of precedence:
 Keep examples and generated code simple: arrow functions, plain `RequestHandler` declarations, named DTOs on local variables, clear control
 flow, and small classes. Preserve extensionless imports unless the project already requires another style. Avoid positional handler
 generics, endpoint-specific request types, speculative abstractions, and unrelated restructuring.
+
+## Error Contracts
+
+Inspect existing helpers, middleware, callers, and tests before changing error responses. For new contracts, prefer RFC 9457 Problem
+Details. Preserve established envelopes, status codes, reasons, type URIs, validation keys, authentication headers, CORS, and success
+responses; adopting Problem Details for an existing API is an explicit contract migration. Reuse native support or existing helpers;
+avoid a parallel error framework, registry, or unnecessary classes.
+
+Trace malformed/missing input, body/query/path validation, expected domain failures, authentication/authorization, and unexpected failures
+through their owning layers. Use safe public messages and stable application identifiers. Preserve intentional not-found responses that
+hide unauthorized resources. Keep transport mapping out of services/repositories where those boundaries already exist.
 
 ## Repository Discovery
 
@@ -129,7 +140,8 @@ Load only what the task needs. Preserve the connected code snippets when adaptin
 - [controller-pattern.md](references/controller-pattern.md): CRUD handlers, local error mapping, and shared request identity.
 - [middleware-pattern.md](references/middleware-pattern.md): authentication, parsed validation output, and global errors.
 - [model-pattern.md](references/model-pattern.md): entities, DTOs, and schemas.
-- [error-pattern.md](references/error-pattern.md): shared errors and `ErrorResponseBuilder`.
+- [error-pattern.md](references/error-pattern.md): shared errors and a minimal Problem Details response function.
+- [problem-details.md](references/problem-details.md): RFC members, optional extensions, validation mapping, and safety boundaries.
 - [status-code-pattern.md](references/status-code-pattern.md): HTTP status constants.
 - [pagination-pattern.md](references/pagination-pattern.md): pagination contracts and validated cursors.
 - [repository-pattern.md](references/repository-pattern.md): concrete repository classes and shared context/composition.

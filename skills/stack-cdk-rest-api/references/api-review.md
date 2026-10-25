@@ -16,6 +16,19 @@ Use before reporting completion. Mark applicable checks passed, failed, or unver
 - Runtime imports use the supported Storm `/framework` entry; handler dependency graphs and real bundles do not accidentally include CDK.
   Template tests with bundling disabled are not bundle verification.
 
+## Error Contracts
+
+- Existing envelopes, statuses, type URIs, reasons, field keys, auth headers, CORS, and success contracts are preserved unless migration is
+  explicitly requested. New contracts follow [problem-details.md](problem-details.md).
+- Problem Details JSON uses `application/problem+json`; body status matches HTTP status when present. Extensions stay top-level and cannot
+  override standard members. Optional fields/files are relevant and contain safe arrays of messages.
+- Missing/malformed input, nested/root/multiple validation issues, expected domain errors, auth failures, and safe generic 500s are checked
+  through real middleware. Parsed schema output reaches application logic; JSON has one parsing owner.
+- Safe public messages and redacted logs contain no sensitive payloads, credentials, or internal diagnostics. Authorization precedes
+  sensitive disclosure; intentional non-disclosure remains intact.
+- Application coverage is distinguished from unverified Gateway/authorizer/proxy behavior. No unrelated infrastructure customization,
+  auth redesign, or deployment is introduced. See [testing-pattern.md](testing-pattern.md) for response checks.
+
 ## Application Behavior
 
 - Happy path and relevant not-found/conflict cases return expected status, body, and headers.

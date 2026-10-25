@@ -24,6 +24,7 @@ export const app = express();
 // Enable trust proxy only for the actual trusted proxy topology; leave it off by default.
 app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+// CORS precedes parsers and auth so application-generated failures retain its headers.
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -38,6 +39,9 @@ app.use((_request, _response, next) => {
 });
 app.use(globalErrorHandler);
 ```
+
+The final missing-route middleware forwards to the same Problem Details mapper as other errors. Existing APIs keep their agreed error
+contract. Proxies and hosting layers can still emit their own responses; local app tests do not establish their format.
 
 CORS is a browser policy, not authorization. Preserve the project's allowed origins and credential rules. Configure `trust proxy` for known
 hops or addresses only when deployed behind a trusted proxy; unconditional `true` can trust caller-controlled forwarded headers. See

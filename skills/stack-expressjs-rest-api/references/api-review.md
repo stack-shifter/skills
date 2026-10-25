@@ -12,6 +12,19 @@ Before completion, mark applicable checks passed, failed, or unverified with a r
 - When Lambda Web Functions is selected, check the listen address, packaged entrypoint/dependencies, endpoint authentication, concurrency,
   and rollout settings using [lambda-web-functions.md](lambda-web-functions.md). Report deployed checks separately from local validation.
 
+## Error Contracts
+
+- Existing envelopes, statuses, type URIs, reasons, field keys, auth headers, CORS, and success contracts are preserved unless migration is
+  explicitly requested. New contracts follow [problem-details.md](problem-details.md).
+- Problem Details JSON uses `application/problem+json`; body status matches HTTP status when present. Extensions stay top-level and cannot
+  override standard members. Optional fields/files are relevant and contain safe arrays of messages.
+- Missing/malformed input, nested/root/multiple validation issues, expected domain errors, auth failures, and safe generic 500s are checked
+  through real middleware. Parsed schema output reaches application logic; JSON has one parsing owner.
+- Safe public messages and redacted logs contain no sensitive payloads, credentials, or internal diagnostics. Authorization precedes
+  sensitive disclosure; intentional non-disclosure remains intact.
+- Application coverage is distinguished from unverified Gateway/authorizer/proxy behavior. No unrelated infrastructure customization,
+  auth redesign, or deployment is introduced. See [testing-pattern.md](testing-pattern.md) for response checks.
+
 ## Behavior and Boundaries
 
 - Success, relevant not-found/conflict cases, and bodyless 204 responses preserve status, body, headers, and pagination contracts.

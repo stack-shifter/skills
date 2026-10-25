@@ -37,7 +37,8 @@ delete process.env.AWS_SESSION_TOKEN;
 ## HTTP Composition Tests
 
 This Vitest/Supertest example follows the connected references; adapt to Jest or another existing runner without installing a second runner.
-Supertest uses an ephemeral local listener, not a deployed endpoint. The setup file above supplies configuration before app import.
+Supertest uses an ephemeral local listener, not a deployed endpoint. Error assertions assume the new Problem Details examples;
+for established APIs assert their existing envelope instead. The setup file above supplies configuration before app import.
 
 ```ts
 // test/items.test.ts
@@ -88,6 +89,8 @@ it('rejects a missing token before executing a write', async () => {
   const response = await request(app).post('/v1/items').send({ name: 'Example' });
 
   expect(response.status).toBe(401);
+  expect(response.body.status).toBe(401);
+  expect(response.headers['www-authenticate']).toBe('Bearer');
   expect(verify).not.toHaveBeenCalled();
   expect(items.create).not.toHaveBeenCalled();
 });
@@ -106,7 +109,12 @@ it('rejects invalid schema input before executing a write', async () => {
     .set('Authorization', 'Bearer test-token').send({ name: '   ' });
 
   expect(response.status).toBe(400);
-  expect(response.body.type).toBe('ValidationError');
+  expect(response.headers['content-type']).toMatch(/^application\/problem\+json(?:;|$)/);
+  expect(response.headers['access-control-allow-origin']).toBe('https://ui.example.invalid');
+  expect(response.body).toMatchObject({
+    type: 'about:blank', title: 'Bad Request', status: 400, reason: 'InvalidFields',
+    fields: { name: ['Enter a name.'] },
+  });
   expect(items.create).not.toHaveBeenCalled();
 });
 
@@ -115,7 +123,11 @@ it('maps malformed JSON through the agreed error format', async () => {
     .set('Content-Type', 'application/json').send('{');
 
   expect(response.status).toBe(400);
-  expect(response.body).toMatchObject({ type: 'ValidationError', message: 'Malformed JSON body' });
+  expect(response.body).toMatchObject({
+    type: 'about:blank', title: 'Bad Request', status: 400, detail: 'Malformed JSON body', reason: 'InvalidRequest',
+  });
+  expect(response.body.fields).toBeUndefined();
+  expect(response.headers['access-control-allow-origin']).toBe('https://ui.example.invalid');
   expect(items.create).not.toHaveBeenCalled();
 });
 
@@ -141,9 +153,32 @@ try {
   const response = await request(app).get(`/v1/items/${id}`)
     .set('Authorization', 'Bearer test-token');
   expect(response.status).toBe(500);
-  expect(response.body.message).toBe('An unexpected error occurred');
-  expect(errorLog).toHaveBeenCalledWith('Unexpected request failure', expect.any(Error));
+  expect(response.body.detail).toBe('An unexpected error occurred');
+  expect(response.body.status).toBe(500);
+  expect(response.text).not.toContain('internal diagnostic');
+  expect(errorLog).toHaveBeenCalledWith('Unexpected request failure');
 } finally {
   errorLog.mockRestore();
 }
 ```
+
+## Error Contract Coverage
+
+For an existing API, assert its established envelope and identifiers; do not migrate them to satisfy these examples. When Problem Details
+is used, exercise these observable responses with real middleware and the existing runner:
+
+- HTTP status matches body `status` when present; content type is `application/problem+json` (allow a charset parameter).
+- Configured CORS is present on application errors, including parsing, validation, authorization, and unexpected failures.
+- Missing body, malformed JSON, and body/query/path schema failures retain the agreed statuses and optional extensions.
+- Field messages preserve multiple issues, nested/array paths such as `items.0.name`, root-level issues, and dictionary keys such as
+  `__proto__`. Use safe fixture messages and verify rejected sensitive values are absent.
+- Parsed/coerced/defaulted values reach controllers; JSON is parsed once. Failed validation does not execute business logic.
+- Expected not-found/conflict reasons remain stable; fields/files appear only when relevant and access has been checked.
+- Authentication/permission failures retain 401/403 or intentional 404 and required authentication headers. No unauthorized writes or
+  sensitive resource disclosures occur.
+- Unexpected exceptions produce safe generic 500 details; responses contain no stack traces, driver/SDK details, credentials, or sensitive
+  rejected values. Scope expected-log spies to their test and assert redaction; do not globally mute logs.
+- Success envelopes, Location headers, pagination, and bodyless 204 responses remain unchanged.
+
+Use local deterministic fixtures and mocked external boundaries. Keep the parser/auth/error middleware under test real instead of replacing
+it with a broad mock. Record deployed authorizer, Gateway/proxy, and live integration behavior as unverified unless separately checked.
