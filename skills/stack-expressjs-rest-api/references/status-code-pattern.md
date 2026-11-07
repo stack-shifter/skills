@@ -39,8 +39,8 @@ export enum StatusCode {
 ## Usage
 
 ```ts
-import { StatusCode } from '../utilities/status-code';
-import { sendProblem } from '../utilities/problem-response';
+import { StatusCode } from '../utilities/status-code.ts';
+import { sendProblem } from '../utilities/problem-response.ts';
 
 // In a controller
 response.status(StatusCode.OK).json(item);

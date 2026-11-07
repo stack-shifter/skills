@@ -5,6 +5,8 @@ Before completion, mark applicable checks passed, failed, or unverified with a r
 ## Wiring and Configuration
 
 - Installed Express, TypeScript, schema, and middleware versions inspected; no automatic framework migration or snapshot patch pinning.
+- Package module type, compiler settings, and import specifiers agree with the target Node runtime. New starters include Helmet and CORS
+  as runtime dependencies and `@types/cors` as a development dependency.
 - App mounts and router paths compose exactly once; handlers, schema names, imports, repository methods, and Location headers agree.
 - App is importable without starting a server or loading local development configuration. Runtime clients initialize after configuration.
 - Proxy trust matches the deployed topology, CORS matches the project contract, public endpoints/preflight remain reachable as intended.
@@ -37,6 +39,8 @@ Before completion, mark applicable checks passed, failed, or unverified with a r
 ## Evidence and Handoff
 
 - Relevant type checks, tests, and build pass. Real middleware is exercised through HTTP requests; test mocks do not bypass the behavior claimed.
+- For starter, build, or entrypoint changes, start the compiled app with the target Node version and request `GET /heartbeat` or the
+  project's health route. Verify the emitted entrypoint and imports work with the production module settings.
 - Tests use deterministic configuration, mocked external boundaries, disposable persistence where needed, and no unexpected outbound calls
   or unasserted warning/error logs. Local tests are distinguished from deployed authentication and live integration checks.
 - Existing-pattern and small-project examples remain readable, with only required layers; standalone functions/callbacks use arrow functions.

@@ -68,7 +68,7 @@ return {
 
 ```ts
 const query = response.locals.validated.query;
-const paginated = await dbContext.items.findAll(query);
+const paginated = await context.items.findAll(query);
 response.status(StatusCode.OK).json(paginated);
 ```
 

@@ -1,7 +1,7 @@
 # Controller Pattern
 
 Keep controllers readable: consume validated inputs, call repositories or services, and shape HTTP responses. These connected examples use
-arrow functions and the shared `dbContext`. Preserve local `try/catch` mappings when the repository already requires them; Express 5 can
+arrow functions and the shared `context`. Preserve local `try/catch` mappings when the repository already requires them; Express 5 can
 forward unexpected async failures automatically.
 
 ## Connected CRUD Examples
@@ -14,19 +14,19 @@ contract in [error-pattern.md](error-pattern.md); preserve established local env
 ```ts
 // src/controllers/item.controller.ts
 import type { RequestHandler } from 'express';
-import { dbContext } from '../dependencies/app.dependencies';
+import { context } from '../dependencies/app.dependencies.ts';
 import type {
   ItemPath, ItemQuery, ItemPostDto, ItemPutDto,
-} from '../models/validation/item.validation';
-import { sendProblem } from '../utilities/problem-response';
-import { NotFoundError, ValidationError } from '../utilities/errors';
-import { StatusCode } from '../utilities/status-code';
+} from '../models/validation/item.validation.ts';
+import { sendProblem } from '../utilities/problem-response.ts';
+import { NotFoundError, ValidationError } from '../utilities/errors.ts';
+import { StatusCode } from '../utilities/status-code.ts';
 
 export const getItemsHandler: RequestHandler = async (
   _request, response,
 ): Promise<void> => {
   const query: ItemQuery = response.locals.validated.query;
-  const page = await dbContext.items.findAll(query);
+  const page = await context.items.findAll(query);
   response.status(StatusCode.OK).json(page);
 };
 
@@ -35,7 +35,7 @@ export const getItemByIdHandler: RequestHandler = async (
 ): Promise<void> => {
   const { itemId }: ItemPath = response.locals.validated.params;
   try {
-    const item = await dbContext.items.findById(itemId);
+    const item = await context.items.findById(itemId);
     if (!item) throw new NotFoundError('Item not found');
     response.status(StatusCode.OK).json(item);
   } catch (error: unknown) {
@@ -53,7 +53,7 @@ export const createItemHandler: RequestHandler = async (
   _request, response,
 ): Promise<void> => {
   const dto: ItemPostDto = response.locals.validated.body;
-  const item = await dbContext.items.create(dto);
+  const item = await context.items.create(dto);
   response.location(`/v1/items/${item.id}`).status(StatusCode.CREATED).json(item);
 };
 
@@ -65,7 +65,7 @@ export const updateItemHandler: RequestHandler = async (
   if (itemId !== dto.id) {
     throw new ValidationError('Id does not match. Unable to update item.');
   }
-  await dbContext.items.update(itemId, dto);
+  await context.items.update(itemId, dto);
   response.status(StatusCode.NO_CONTENT).end();
 };
 
@@ -73,7 +73,7 @@ export const deleteItemHandler: RequestHandler = async (
   _request, response,
 ): Promise<void> => {
   const { itemId }: ItemPath = response.locals.validated.params;
-  await dbContext.items.delete(itemId);
+  await context.items.delete(itemId);
   response.status(StatusCode.NO_CONTENT).end();
 };
 ```
@@ -94,9 +94,9 @@ When a controller needs middleware-added identity, annotate its request with the
 ```ts
 // src/controllers/current-user.controller.ts
 import type { RequestHandler } from 'express';
-import type { AuthenticatedRequest } from '../models/authenticated-request';
-import { AuthenticationError } from '../utilities/errors';
-import { StatusCode } from '../utilities/status-code';
+import type { AuthenticatedRequest } from '../models/authenticated-request.ts';
+import { AuthenticationError } from '../utilities/errors.ts';
+import { StatusCode } from '../utilities/status-code.ts';
 
 export const getCurrentUserHandler: RequestHandler = async (
   request: AuthenticatedRequest, response,

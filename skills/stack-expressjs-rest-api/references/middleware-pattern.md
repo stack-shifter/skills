@@ -24,8 +24,8 @@ export interface AuthenticatedRequest extends Request {
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
 import type { CognitoAccessTokenPayload } from 'aws-jwt-verify/jwt-model';
 import type { RequestHandler } from 'express';
-import type { AuthenticatedRequest } from '../models/authenticated-request';
-import { AuthenticationError, AuthorizationError } from '../utilities/errors';
+import type { AuthenticatedRequest } from '../models/authenticated-request.ts';
+import { AuthenticationError, AuthorizationError } from '../utilities/errors.ts';
 
 const userPoolId = process.env.COGNITO_USER_POOL_ID;
 const clientIds = process.env.COGNITO_APP_CLIENT_IDS?.split(',')
@@ -85,9 +85,9 @@ previously validated path parameters. Do not assign to `request.query` in Expres
 // src/middlewares/validation.middleware.ts
 import type { RequestHandler } from 'express';
 import { z } from 'zod/v4';
-import { sendProblem } from '../utilities/problem-response';
-import { StatusCode } from '../utilities/status-code';
-import { formatZodIssues } from '../utilities/validation';
+import { sendProblem } from '../utilities/problem-response.ts';
+import { StatusCode } from '../utilities/status-code.ts';
+import { formatZodIssues } from '../utilities/validation.ts';
 
 export const validateBody = (schema: z.ZodType): RequestHandler =>
   (request, response, next): void => {
@@ -146,11 +146,11 @@ messages; unknown exceptions do not. Preserve existing reasons and authenticatio
 ```ts
 // src/middlewares/global-error.middleware.ts
 import type { ErrorRequestHandler } from 'express';
-import { sendProblem } from '../utilities/problem-response';
+import { sendProblem } from '../utilities/problem-response.ts';
 import {
   AuthenticationError, AuthorizationError, ConflictError, NotFoundError, ValidationError,
-} from '../utilities/errors';
-import { StatusCode } from '../utilities/status-code';
+} from '../utilities/errors.ts';
+import { StatusCode } from '../utilities/status-code.ts';
 
 export const globalErrorHandler: ErrorRequestHandler = (error: unknown, _request, response, next) => {
   if (response.headersSent) {

@@ -7,21 +7,21 @@ Compose authorization, validation, and controller handlers in the existing route
 ```ts
 // src/routes/item.route.ts
 import { Router } from 'express';
-import { authorize } from '../middlewares/authorize.middleware';
-import { validateBody, validateParams, validateQuery } from '../middlewares/validation.middleware';
+import { authorize } from '../middlewares/authorize.middleware.ts';
+import { validateBody, validateParams, validateQuery } from '../middlewares/validation.middleware.ts';
 import {
   itemPathSchema,
   itemPostDtoSchema,
   itemPutDtoSchema,
   itemQuerySchema,
-} from '../models/validation/item.validation';
+} from '../models/validation/item.validation.ts';
 import {
   createItemHandler,
   deleteItemHandler,
   getItemByIdHandler,
   getItemsHandler,
   updateItemHandler,
-} from '../controllers/item.controller';
+} from '../controllers/item.controller.ts';
 
 // Fictional group: use the project's approved groups/scopes.
 const allowedGroups = ['editors'];

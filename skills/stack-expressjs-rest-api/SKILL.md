@@ -12,7 +12,7 @@ Deliver working Express API changes using this order of precedence:
 3. this skill's examples
 
 Keep examples and generated code simple: arrow functions, plain `RequestHandler` declarations, named DTOs on local variables, clear control
-flow, and small classes. Preserve extensionless imports unless the project already requires another style. Avoid positional handler
+flow, and small classes. Follow the project's module and import conventions. Avoid positional handler
 generics, endpoint-specific request types, speculative abstractions, and unrelated restructuring.
 
 ## Error Contracts
@@ -30,7 +30,7 @@ hide unauthorized resources. Keep transport mapping out of services/repositories
 
 Inspect the parts relevant to the request:
 
-- manifests, lockfiles, installed types, scripts, and tests
+- manifests, lockfiles, installed types, TypeScript configuration, relative imports, build and start scripts, and tests
 - app bootstrap, environment loading, router mounting, and route prefixes
 - controller conventions, middleware order, and shared status/error responses
 - schemas and whether parsed outputs reach application logic
@@ -65,33 +65,33 @@ Database modeling is outside this skill; preserve required atomicity and recover
 
 ## Express 5 Baseline
 
-Follow supported project dependencies first. For a new project, use Node.js 24, Express 5, TypeScript, and Zod 4 without pinning example patch
-versions. Express 5 requires Node.js 18 or higher; verify compatibility before using newer Node APIs.
+Follow supported project dependencies first. For a new project, use Node.js 24, Express 5, TypeScript, Zod 4, Helmet, and CORS middleware.
+Express 5 requires Node.js 18 or higher. Verify compatibility before using newer Node APIs.
 
 ```bash
 npm init
-npm install express@5
-npm install --save-dev typescript @types/express@5 @types/node
+npm install express@5 zod@4 helmet cors
+npm install --save-dev typescript tsx @types/express@5 @types/node@24 @types/cors
 ```
 
-Use the project's package manager. Add only middleware and development tools actually used, including their types when needed.
+Use the project's package manager. Add other dependencies for the selected features. The Cognito example requires `aws-jwt-verify`.
 
 - Rejected promises from async middleware/handlers reach error middleware automatically. Callback-based failures still need `next(error)`.
 - Error middleware must declare all four parameters and delegate when headers were already sent.
-- `express.json()` and `express.urlencoded()` provide body parsing; `req.body` may be undefined before parsing.
+- Use built-in `express.json()` for JSON requests. Add `express.urlencoded()` for form endpoints that accept URL-encoded bodies.
+  `req.body` may be undefined before parsing.
 - `req.query` is a getter in Express 5; do not use it as the destination for coerced values.
 - Named wildcards (`/*splat`, `/{*splat}`) and braces for optional segments (`/:file{.:ext}`) replace older route syntax.
 - Use shared status constants, `Location` for created resources, and bodyless 204 responses.
 - Preserve existing auth. For a new Cognito flow, use the connected verification and group middleware example.
-- Use `helmet` and the existing CORS policy; new examples use `CORS_ORIGIN`. CORS does not authorize requests. Set proxy trust only for the
-  actual trusted topology.
+- Mount `helmet` and configure `cors` with the application's origin policy before parsing and auth. Set proxy trust only for the
+  actual trusted topology. See the app pattern for middleware selection.
 
 See the official [installation](https://expressjs.com/en/5x/starter/installing/),
 [migration](https://expressjs.com/en/guide/migrating-5/), and [error handling](https://expressjs.com/en/guide/error-handling/) guides.
-These examples use a TypeScript runner or compilation; native Node type stripping does not type-check or support enum/parameter-property
-syntax. Keep the project's existing compiler settings.
-When no configuration exists, use the current TypeScript-recommended Node.js module mode (currently `NodeNext`), compatible with the
-deployed runtime. Verify current guidance instead of copying an older version-specific fallback; see the app reference for the example.
+For new standalone projects, use ESM with `"type": "module"` and TypeScript `NodeNext`. The connected examples use explicit relative
+`.ts` imports and compile them to `.js` with `rewriteRelativeImportExtensions`. Use `import type` for declarations used only as types.
+Keep an existing project's compiler, module format, and import conventions. See the app reference for the full starter configuration.
 
 ## Project Shape
 
@@ -135,7 +135,7 @@ If an existing bootstrap uses `process.loadEnvFile()`, keep it before dependency
 
 Load only what the task needs. Preserve the connected code snippets when adapting these patterns:
 
-- [app-pattern.md](references/app-pattern.md): app composition, startup, and environment loading.
+- [app-pattern.md](references/app-pattern.md): middleware selection, app composition, ESM build configuration, startup, and environment loading.
 - [route-pattern.md](references/route-pattern.md): router paths, authorization, validation, and mounts.
 - [controller-pattern.md](references/controller-pattern.md): CRUD handlers, local error mapping, and shared request identity.
 - [middleware-pattern.md](references/middleware-pattern.md): authentication, parsed validation output, and global errors.

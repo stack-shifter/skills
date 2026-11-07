@@ -12,10 +12,10 @@ a second CRUD layer. It returns mapped records, creates IDs/timestamps, uses sta
 
 ```ts
 // src/data/repositories/item.repository.ts
-import type { Item } from '../../models/entities/item.model';
-import type { ItemPostDto, ItemPutDto, ItemQuery } from '../../models/validation/item.validation';
-import type { Pagination } from '../pagination.interface';
-import { ConflictError, DatabaseError, NotFoundError, ValidationError } from '../../utilities/errors';
+import type { Item } from '../../models/entities/item.model.ts';
+import type { ItemPostDto, ItemPutDto, ItemQuery } from '../../models/validation/item.validation.ts';
+import type { Pagination } from '../pagination.interface.ts';
+import { ConflictError, DatabaseError, NotFoundError, ValidationError } from '../../utilities/errors.ts';
 
 export interface ItemPersistence {
   findById(id: string): Promise<Item | null>;
@@ -87,8 +87,8 @@ Preserve diagnostic causes through existing logging/error conventions without ex
 
 ```ts
 // src/data/context.ts
-import { ItemRepository } from './repositories/item.repository';
-import type { ItemPersistence } from './repositories/item.repository';
+import { ItemRepository } from './repositories/item.repository.ts';
+import type { ItemPersistence } from './repositories/item.repository.ts';
 
 export class Context {
   readonly items: ItemRepository;
@@ -102,10 +102,10 @@ export class Context {
 
 ```ts
 // src/dependencies/app.dependencies.ts
-import { Context } from '../data/context';
-import { database } from './database.dependencies';
+import { Context } from '../data/context.ts';
+import { database } from './database.dependencies.ts';
 
-export const dbContext = new Context(database);
+export const context = new Context(database);
 ```
 
 `database.dependencies.ts` is the application-owned integration point: export a configured client/adapter satisfying `ItemPersistence` from

@@ -12,12 +12,12 @@ supports Web Functions. The CLI example below is an alternative when the project
 
 ## HTTP Server Startup
 
-Adapt the existing process entrypoint; `server.ts` is only an example name. Use the same module settings and extensionless imports as the
-general examples. Load local env files through the development command in [app-pattern.md](app-pattern.md); hosted configuration is injected.
+Adapt the existing process entrypoint. This example follows the ESM starter's relative `.ts` import convention. Load local env files
+through the development command in [app-pattern.md](app-pattern.md). Hosted configuration is injected.
 
 ```ts
 // src/server.ts
-import { app } from './app';
+import { app } from './app.ts';
 
 const address = process.env.AWS_LAMBDA_HTTP_ENDPOINT || `127.0.0.1:${process.env.PORT || 3000}`;
 const [host, port] = address.split(':');

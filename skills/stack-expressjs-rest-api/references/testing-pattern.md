@@ -55,9 +55,9 @@ const { verify, items } = vi.hoisted(() => ({
 vi.mock('aws-jwt-verify', () => ({
   CognitoJwtVerifier: { create: () => ({ verify }) },
 }));
-vi.mock('../src/dependencies/app.dependencies', () => ({ dbContext: { items } }));
+vi.mock('../src/dependencies/app.dependencies.ts', () => ({ context: { items } }));
 
-import { app } from '../src/app';
+import { app } from '../src/app.ts';
 
 const id = '550e8400-e29b-41d4-a716-446655440000';
 

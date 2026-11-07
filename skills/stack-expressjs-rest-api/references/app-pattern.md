@@ -8,25 +8,25 @@ listen address using [lambda-web-functions.md](lambda-web-functions.md); preserv
 
 ## App Composition
 
-The router declares `/items`, so mount it under `/v1` exactly once.
+The router declares `/items`, so mount it under `/v1` exactly once. Install `helmet` and `cors` as runtime dependencies and
+`@types/cors` as a development dependency. Helmet supplies its own types.
 
 ```ts
 // src/app.ts
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import itemRoutes from './routes/item.route';
-import { globalErrorHandler } from './middlewares/global-error.middleware';
-import { NotFoundError } from './utilities/errors';
+import itemRoutes from './routes/item.route.ts';
+import { globalErrorHandler } from './middlewares/global-error.middleware.ts';
+import { NotFoundError } from './utilities/errors.ts';
 
 export const app = express();
 
 // Enable trust proxy only for the actual trusted proxy topology; leave it off by default.
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 // CORS precedes parsers and auth so application-generated failures retain its headers.
+app.use(cors({ origin: process.env.CORS_ORIGIN || false }));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 app.use('/v1', itemRoutes);
 app.get('/heartbeat', (_request, response) => {
@@ -43,18 +43,23 @@ app.use(globalErrorHandler);
 The final missing-route middleware forwards to the same Problem Details mapper as other errors. Existing APIs keep their agreed error
 contract. Proxies and hosting layers can still emit their own responses; local app tests do not establish their format.
 
-CORS is a browser policy, not authorization. Preserve the project's allowed origins and credential rules. Configure `trust proxy` for known
-hops or addresses only when deployed behind a trusted proxy; unconditional `true` can trust caller-controlled forwarded headers. See
-[Express behind proxies](https://expressjs.com/en/guide/behind-proxies/).
+Set `CORS_ORIGIN` to the browser application's origin. With no configured origin, the starter omits CORS headers. Use `*` only for an
+intentionally public policy without credentials. Preserve an existing API's origin and credential rules. Configure `trust proxy` for known
+hops or addresses when deployed behind a trusted proxy. See [Express behind proxies](https://expressjs.com/en/guide/behind-proxies/).
+
+Use built-in `express.json()` for JSON. Add `express.urlencoded()` on endpoints that accept URL-encoded forms. Choose other middleware
+for the route or hosting requirement. Use the project's logger for request logs, add compression when the hosting layer leaves it to
+Express, and add cookie/session middleware or Multer when routes use cookies, sessions, or multipart uploads. See the
+[Express middleware catalog](https://expressjs.com/en/resources/middleware/).
 
 ## Process Startup
 
 Load local environment files through the development command below, before this module runs. Production receives injected configuration.
-Keep the project's module system; the extensionless examples work with `tsx` or compatible CommonJS compilation.
+Use the project's module system. The connected snippets below follow the ESM starter's explicit relative `.ts` import convention.
 
 ```ts
 // src/server.ts
-import { app } from './app';
+import { app } from './app.ts';
 
 const port = Number(process.env.PORT || 3000);
 
@@ -96,16 +101,12 @@ COGNITO_USER_POOL_ID=us-east-1_EXAMPLE
 COGNITO_APP_CLIENT_IDS=example-client-id
 ```
 
-Match the existing runner. For a new TypeScript app, install `tsx` as a development dependency:
-
-```bash
-npm install --save-dev tsx
-```
-
-Use watch mode for development, a separate type check, and compiled JavaScript for production. `tsx` does not type-check:
+Use the existing runner when present. For a new standalone app, set `"type": "module"` in `package.json` and add these scripts.
+`tsx` runs the source in watch mode. `tsc --noEmit` checks the project, and the build emits JavaScript for Node to run.
 
 ```json
 {
+  "type": "module",
   "scripts": {
     "dev": "tsx watch --env-file=.env.development src/server.ts",
     "typecheck": "tsc --noEmit",
@@ -115,29 +116,45 @@ Use watch mode for development, a separate type check, and compiled JavaScript f
 }
 ```
 
-Use the project's existing `tsconfig.json` first. Only when none exists, use the current TypeScript recommendation for Node.js projects:
-`NodeNext`, which follows current Node module behavior rather than a fixed older version. The fallback below keeps CommonJS output and
-extensionless imports through `"type": "commonjs"` (or no `type`) in `package.json`; it does not require an ESM migration.
+## TypeScript Configuration
+
+Use the project's existing `tsconfig.json` when present. The ESM starter pairs Node's `"type": "module"` with `NodeNext` and targets
+`ES2024` for Node.js 24. Use TypeScript 5.7 or later for this target and relative import rewriting.
 
 ```json
 {
   "compilerOptions": {
-    "target": "ESNext",
+    "target": "ES2024",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "rootDir": "src",
     "outDir": "dist",
     "strict": true,
-    "esModuleInterop": true
+    "types": ["node"],
+    "rewriteRelativeImportExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmitOnError": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src"]
 }
 ```
 
-Use a current supported TypeScript release and check compatibility with the deployed Node runtime. For an existing ESM project, preserve
-its import/build conventions. See TypeScript's [module guidance](https://www.typescriptlang.org/tsconfig/module.html).
+- `NodeNext` models Node's module and resolution rules. `target` sets the emitted JavaScript syntax baseline. Check Node API
+  compatibility against the deployed runtime.
+- `import { app } from './app.ts'` emits an import of `./app.js`. The rewrite covers eligible relative paths. Package imports,
+  aliases, and extensionless paths need their own runtime resolution. Preserve `.js` specifiers or CommonJS in projects that already use them.
+- With `verbatimModuleSyntax`, write `import type { RequestHandler } from 'express'` for a declaration used only as a type.
+  Use `import express from 'express'` for the value called at runtime.
+- `include` discovers the application files under `src`. `exclude` filters that discovery. An import can still pull in an excluded file.
+  `rootDir` and `outDir` preserve the source layout in `dist`, so `src/server.ts` emits as `dist/server.js`.
+- `types: ["node"]` loads Node's ambient types explicitly. TypeScript resolves Express and CORS types through their imports. Keep test
+  globals in the test setup or a separate test config. Use `npx tsc --showConfig` and `npx tsc --noEmit --explainFiles` to diagnose
+  unexpected compiler options and file inclusion.
+- Use `tsc -p tsconfig.json` for the standalone build. In a repository with TypeScript project references, follow its build orchestration.
+  `tsc -b` builds the referenced graph in dependency order. Since TypeScript 5.6 it can continue past errors in dependency projects.
 
-Keep test-runner types/configuration in the existing test setup. The development command loads the env file before app imports execute;
-production `start` uses injected variables. Retain another established bootstrap and avoid duplicate env loading. Native Node type stripping does not support the enum/parameter-property syntax used elsewhere in these
-references and does not replace type checking. See [Express installation](https://expressjs.com/en/5x/starter/installing/) for prerequisites
-and TypeScript setup, and the [migration guide](https://expressjs.com/en/guide/migrating-5/) for listener error behavior.
+Run the compiled entrypoint with Node and request `GET /heartbeat` using the target runtime and isolated configuration. Confirm a
+200 response with `{"status":"ok"}`. The development command loads its env file before app imports execute. Production uses injected
+configuration. For compiler details, see the [TSConfig reference](https://www.typescriptlang.org/tsconfig/),
+[relative import rewriting](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-7.html#path-rewriting-for-relative-paths),
+and [build mode behavior](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-6.html#allow---build-with-intermediate-errors).
