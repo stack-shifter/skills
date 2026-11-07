@@ -1,7 +1,9 @@
 # App Pattern
 
-Separate application composition from process startup. Preserve an established bootstrap; for new apps export an app that tests can import
-without opening a listener or loading developer environment files.
+Keep the startup responsibilities separate in new apps. `dependencies/app.dependencies.ts` assembles shared clients, the repository
+`context`, and any services. `app.ts` creates the Express app and registers middleware and routes. `server.ts` starts the listener
+and handles shutdown. Tests can import the app without starting a listener or loading developer environment files. Preserve an established
+bootstrap when extending an existing app.
 
 The filenames are examples, not requirements. Keep an existing `app.ts` entrypoint when appropriate. For Lambda Web Functions, adapt its
 listen address using [lambda-web-functions.md](lambda-web-functions.md); preserve the same routes and application layers.

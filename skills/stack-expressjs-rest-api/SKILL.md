@@ -53,8 +53,8 @@ requested scope. Do not automatically migrate Express versions, module systems, 
 4. Authenticate protected routes and enforce groups/scopes and ownership where required. Use one shared `Request` extension for middleware-
    added identity; keep its fields optional until checked. Controllers that do not use identity keep ordinary handler declarations.
 5. Keep orchestration in controllers, domain workflows/integrations in services, and datastore requests, transactions, mapping, and cursor
-   handling in repositories. Reuse shared clients and repository context through `app.ts` or existing dependency modules. Add only layers
-   required by the flow or repeated code; a small project need not have every layer.
+   handling in repositories. Reuse the project's dependency wiring. In new apps, use `dependencies/app.dependencies.ts` to assemble
+   shared clients, the repository context, and services when needed. A simple CRUD controller can call the repository through `context`.
 6. Reuse error/status utilities. For new patterns, let global error middleware translate typed errors; retain established local `try/catch`
    mappings. Keep parsing, validation, authentication, authorization, and unexpected failures consistent without exposing internal details.
 7. Load configuration before dependency initialization. Keep the app importable without starting a listener or loading developer env files;
@@ -95,22 +95,26 @@ Keep an existing project's compiler, module format, and import conventions. See 
 
 ## Project Shape
 
-Use this layout only when the project lacks an established structure:
+Use this layout when the project lacks an established structure. Add folders as features need them:
 
 ```text
 src/
-├── app.ts                # middleware, routes, and application composition
-├── server.ts             # listening and shutdown, when separate startup is useful
+├── app.ts
+├── server.ts
 ├── controllers/
 ├── data/
+│   ├── db/
+│   │   └── client.ts
 │   ├── context.ts
 │   └── repositories/
 ├── dependencies/
+│   └── app.dependencies.ts
 ├── middlewares/
 ├── models/
 ├── routes/
 ├── services/
-└── utilities/
+├── utilities/
+└── workers/
 ```
 
 Wire only the pieces needed: model → route → controller → service/repository → composition → app mount. Keep database clients out of

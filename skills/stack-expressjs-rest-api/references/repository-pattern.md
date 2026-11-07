@@ -90,7 +90,7 @@ Preserve diagnostic causes through existing logging/error conventions without ex
 import { ItemRepository } from './repositories/item.repository.ts';
 import type { ItemPersistence } from './repositories/item.repository.ts';
 
-export class Context {
+export class RepositoryContext {
   readonly items: ItemRepository;
 
   constructor(database: ItemPersistence) {
@@ -102,15 +102,15 @@ export class Context {
 
 ```ts
 // src/dependencies/app.dependencies.ts
-import { Context } from '../data/context.ts';
-import { database } from './database.dependencies.ts';
+import { RepositoryContext } from '../data/context.ts';
+import { database } from '../data/db/client.ts';
 
-export const context = new Context(database);
+export const context = new RepositoryContext(database);
 ```
 
-`database.dependencies.ts` is the application-owned integration point: export a configured client/adapter satisfying `ItemPersistence` from
-the existing dependency module. It is intentionally datastore-specific and not implemented by this portable reference. Instantiate it once
-after configuration loads, not per request. Generated project code must provide working queries and composition, not leave this seam as a stub.
+`data/db/client.ts` exports the configured database client that satisfies `ItemPersistence` in this example. Reuse the
+project's existing database module when present. Initialize the client and `context` once after configuration loads. Provide working
+queries and composition in generated projects. Compose services that use `context` in the same dependency module when a workflow needs them.
 
 Use a service for workflows or external storage rather than moving datastore calls into a controller. Multi-row changes that form one
 invariant belong in a transaction; cross-system work needs explicit failure/retry semantics. Consult
