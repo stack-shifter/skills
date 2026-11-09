@@ -5,13 +5,16 @@ Reuse the existing pagination contract. These examples show application-defined 
 ## Baseline Example
 
 ```ts
-// src/data/pagination.interface.ts
+// src/data/pagination.model.ts
 
-export interface Pagination<T> {
+/**
+ * A page of items with a cursor for the next page.
+ */
+export type Pagination<T> = {
   limit: number;
   nextCursor: string | null;
   items: T[];
-}
+};
 
 export const encodeCursor = (key: unknown): string => {
   const jsonString = JSON.stringify(key);
@@ -65,6 +68,8 @@ return {
 ```
 
 ## Usage in a Controller
+
+For a resource with a list endpoint, add the corresponding query method to its repository.
 
 ```ts
 const query = response.locals.validated.query;

@@ -1,12 +1,45 @@
 # App Pattern
 
-Keep the startup responsibilities separate in new apps. `dependencies/app.dependencies.ts` assembles shared clients, the repository
-`context`, and any services. `app.ts` creates the Express app and registers middleware and routes. `server.ts` starts the listener
-and handles shutdown. Tests can import the app without starting a listener or loading developer environment files. Preserve an established
-bootstrap when extending an existing app.
+Keep startup responsibilities separate in new apps. The database module owns its connection settings and client. The dependency module
+exports the shared repository `context` and any services. `app.ts` exports the configured Express app. `server.ts` starts the listener and
+handles shutdown. Supply dependency settings or test substitutes before importing the app. Preserve the project's bootstrap when extending
+an existing app.
 
 The filenames are examples, not requirements. Keep an existing `app.ts` entrypoint when appropriate. For Lambda Web Functions, adapt its
 listen address using [lambda-web-functions.md](lambda-web-functions.md); preserve the same routes and application layers.
+
+## Standalone Starter
+
+Use Node.js 24, Express 5, TypeScript, Zod 4, Helmet, and CORS. Keep the project's package manager and compatible versions when extending
+an existing app.
+
+```bash
+npm init
+npm install express@5 zod@4 helmet cors
+npm install --save-dev typescript tsx @types/express@5 @types/node@24 @types/cors
+```
+
+Add database dependencies only for persistence. Add `aws-jwt-verify` when using the Cognito example.
+
+```text
+src/
+├── app.ts
+├── server.ts
+├── controllers/
+├── middlewares/
+├── models/
+├── routes/
+├── utilities/
+├── data/                          # When persistence is needed
+│   ├── db/client.ts
+│   ├── context.ts
+│   └── repositories/
+├── dependencies/app.dependencies.ts
+├── services/
+└── workers/
+```
+
+Create only the directories the application uses.
 
 ## App Composition
 
@@ -22,11 +55,13 @@ import itemRoutes from './routes/item.route.ts';
 import { globalErrorHandler } from './middlewares/global-error.middleware.ts';
 import { NotFoundError } from './utilities/errors.ts';
 
+/**
+ * Express application with middleware and routes registered.
+ */
 export const app = express();
 
-// Enable trust proxy only for the actual trusted proxy topology; leave it off by default.
+// Apply security and CORS headers before parsing so they reach error responses.
 app.use(helmet());
-// CORS precedes parsers and auth so application-generated failures retain its headers.
 app.use(cors({ origin: process.env.CORS_ORIGIN || false }));
 app.use(express.json());
 
@@ -49,7 +84,7 @@ Set `CORS_ORIGIN` to the browser application's origin. With no configured origin
 intentionally public policy without credentials. Preserve an existing API's origin and credential rules. Configure `trust proxy` for known
 hops or addresses when deployed behind a trusted proxy. See [Express behind proxies](https://expressjs.com/en/guide/behind-proxies/).
 
-Use built-in `express.json()` for JSON. Add `express.urlencoded()` on endpoints that accept URL-encoded forms. Choose other middleware
+Mount `app.use(express.json())` once before routers that consume JSON. Add `express.urlencoded()` on endpoints that accept URL-encoded forms. Choose other middleware
 for the route or hosting requirement. Use the project's logger for request logs, add compression when the hosting layer leaves it to
 Express, and add cookie/session middleware or Multer when routes use cookies, sessions, or multipart uploads. See the
 [Express middleware catalog](https://expressjs.com/en/resources/middleware/).
@@ -88,12 +123,15 @@ process.once('SIGTERM', shutdown);
 process.once('SIGINT', shutdown);
 ```
 
-Follow existing shutdown timeouts and resource cleanup. Do not add an HTTP listener or HTTP auth middleware to background workers.
+For a database-backed app, close the shared pool after the HTTP listener drains. Follow existing shutdown timeouts and resource cleanup.
+Keep database configuration checks in the database module. Add startup probes or a dedicated environment schema when the application
+needs them. Do not add an HTTP listener or HTTP auth middleware to background workers.
 
 ## Environment and Scripts
 
 Commit `.env.example` with required keys and fictional values; gitignore local `.env.development` and any `.env.production`. Production
-normally receives injected configuration. Do not create unused production files or load development files in tests.
+receives injected configuration. Use one environment-loading mechanism. If a project calls `process.loadEnvFile()` in an ESM entrypoint,
+load the file before a dynamic import of modules that read the environment. Static imports evaluate before the entrypoint body.
 
 ```dotenv
 NODE_ENV=development
@@ -104,7 +142,8 @@ COGNITO_APP_CLIENT_IDS=example-client-id
 ```
 
 Use the existing runner when present. For a new standalone app, set `"type": "module"` in `package.json` and add these scripts.
-`tsx` runs the source in watch mode. `tsc --noEmit` checks the project, and the build emits JavaScript for Node to run.
+`tsx` runs the source in watch mode. When using process settings or code defaults, omit the env-file flag. `tsc --noEmit` checks the
+project, and the build emits JavaScript for Node to run.
 
 ```json
 {
@@ -132,6 +171,7 @@ Use the project's existing `tsconfig.json` when present. The ESM starter pairs N
     "rootDir": "src",
     "outDir": "dist",
     "strict": true,
+    "skipLibCheck": true,
     "types": ["node"],
     "rewriteRelativeImportExtensions": true,
     "verbatimModuleSyntax": true,
@@ -145,6 +185,7 @@ Use the project's existing `tsconfig.json` when present. The ESM starter pairs N
   compatibility against the deployed runtime.
 - `import { app } from './app.ts'` emits an import of `./app.js`. The rewrite covers eligible relative paths. Package imports,
   aliases, and extensionless paths need their own runtime resolution. Preserve `.js` specifiers or CommonJS in projects that already use them.
+- `skipLibCheck` skips checking dependency declaration files while keeping strict checks on application code.
 - With `verbatimModuleSyntax`, write `import type { RequestHandler } from 'express'` for a declaration used only as a type.
   Use `import express from 'express'` for the value called at runtime.
 - `include` discovers the application files under `src`. `exclude` filters that discovery. An import can still pull in an excluded file.

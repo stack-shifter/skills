@@ -4,98 +4,119 @@ Keep persistence behind repositories, with one shared context when several repos
 contracts, classes, and `dependencies/` composition. Controllers orchestrate, services implement domain workflows and integrations, and
 repositories own queries, transactions, record mapping, and persistence error translation.
 
-## Repository Class
+Reuse existing repository contracts and adapters. When repositories already have a configured client, pass it directly.
 
-Reuse an existing repository interface when present; this concrete class needs no generic base contract. `ItemPersistence` stands in for the
-project's datastore implementation so the example stays database-neutral. Adapt it to the actual driver/query code rather than introducing
-a second CRUD layer. It returns mapped records, creates IDs/timestamps, uses stable pagination, and returns `null` for a missing update.
+## Drizzle Example
+
+This example uses the `Item` shape from [model-pattern.md](model-pattern.md) and an existing `items` table with matching fields,
+including string-mode timestamps. Map database records in the repository when their shape differs from the entity.
+
+For new contracts, return `null` from a lookup when no row exists. Throw `NotFoundError` when an update that requires an existing row
+matches nothing. The HTTP layer translates that error to 404. Preserve existing deletion semantics and error contracts.
+
+```ts
+// src/data/db/client.ts
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is required');
+}
+
+const pool = new Pool({ connectionString: databaseUrl });
+
+/**
+ * Shared Drizzle client for the application.
+ */
+export const db = drizzle({ client: pool });
+
+/**
+ * Configured client type for repositories and context.
+ */
+export type Db = typeof db;
+
+/**
+ * Releases the shared database pool during shutdown.
+ */
+export const closeDatabase = (): Promise<void> => pool.end();
+```
 
 ```ts
 // src/data/repositories/item.repository.ts
+import { eq } from 'drizzle-orm';
 import type { Item } from '../../models/entities/item.model.ts';
-import type { ItemPostDto, ItemPutDto, ItemQuery } from '../../models/validation/item.validation.ts';
-import type { Pagination } from '../pagination.interface.ts';
-import { ConflictError, DatabaseError, NotFoundError, ValidationError } from '../../utilities/errors.ts';
+import { NotFoundError } from '../../utilities/errors.ts';
+import type { Db } from '../db/client.ts';
+import { items } from '../db/schema/item.schema.ts';
 
-export interface ItemPersistence {
-  findById(id: string): Promise<Item | null>;
-  findAll(query: ItemQuery): Promise<Pagination<Item>>;
-  create(input: ItemPostDto): Promise<Item>;
-  update(id: string, input: ItemPutDto): Promise<Item | null>;
-  delete(id: string): Promise<void>;
-}
-
+/**
+ * Persists item entities using the configured Drizzle client.
+ */
 export class ItemRepository {
-  constructor(private readonly db: ItemPersistence) {}
+  constructor(private readonly db: Db) {}
 
+  /**
+   * Finds an item by ID.
+   * @param id Item identifier.
+   * @returns The stored item or null if absent.
+   * @throws When the query fails.
+   */
   async findById(id: string): Promise<Item | null> {
-    try {
-      const item = await this.db.findById(id);
-      return item;
-    } catch {
-      throw new DatabaseError('Error retrieving item');
-    }
+    const [item] = await this.db.select().from(items).where(eq(items.id, id));
+    return item ?? null;
   }
 
-  async findAll(query: ItemQuery): Promise<Pagination<Item>> {
+  /**
+   * Inserts an item and returns the persisted entity.
+   * @param item Item entity to persist.
+   * @returns The stored item.
+   * @throws When the insert fails or returns no row.
+   */
+  async create(item: Item): Promise<Item> {
     try {
-      const page = await this.db.findAll(query);
-      return page;
+      const [saved] = await this.db.insert(items).values(item).returning();
+      if (!saved) {
+        throw new Error('Item insert returned no row');
+      }
+
+      return saved;
     } catch (error) {
-      if (error instanceof ValidationError) throw error;
-      throw new DatabaseError('Error listing items');
+      throw new Error('Unable to save item', { cause: error });
     }
   }
 
-  async create(input: ItemPostDto): Promise<Item> {
-    try {
-      const item = await this.db.create(input);
-      return item;
-    } catch (error) {
-      if (error instanceof ConflictError) throw error;
-      throw new DatabaseError('Error creating item');
+  /**
+   * Updates an existing item.
+   * @param id Item identifier.
+   * @param changes Fields to update.
+   * @returns The updated item.
+   * @throws NotFoundError if no row matches, or a query error if the write fails.
+   */
+  async update(id: string, changes: Pick<Item, 'name' | 'modifiedAt'>): Promise<Item> {
+    const [updated] = await this.db.update(items).set(changes).where(eq(items.id, id)).returning();
+    if (!updated) {
+      throw new NotFoundError('Item not found');
     }
-  }
 
-  async update(id: string, input: ItemPutDto): Promise<Item> {
-    let item: Item | null;
-    try {
-      item = await this.db.update(id, input);
-    } catch (error) {
-      if (error instanceof ConflictError) throw error;
-      throw new DatabaseError('Error updating item');
-    }
-    if (!item) throw new NotFoundError('Item not found');
-    return item;
-  }
-
-  async delete(id: string): Promise<void> {
-    try {
-      await this.db.delete(id);
-    } catch {
-      throw new DatabaseError('Error deleting item');
-    }
+    return updated;
   }
 }
 ```
 
-This example treats an already-missing delete as complete. Preserve another established contract when required. Translate known driver
-constraint failures to `ConflictError` where the real query runs; do not indiscriminately convert domain failures to generic database errors.
-Preserve diagnostic causes through existing logging/error conventions without exposing driver details to clients.
-
-## Shared Context and Composition
-
 ```ts
 // src/data/context.ts
+import type { Db } from './db/client.ts';
 import { ItemRepository } from './repositories/item.repository.ts';
-import type { ItemPersistence } from './repositories/item.repository.ts';
 
+/**
+ * Provides repositories backed by one database client.
+ */
 export class RepositoryContext {
   readonly items: ItemRepository;
 
-  constructor(database: ItemPersistence) {
+  constructor(database: Db) {
     this.items = new ItemRepository(database);
-    // Add existing resource repositories here when the flow needs them.
   }
 }
 ```
@@ -103,14 +124,17 @@ export class RepositoryContext {
 ```ts
 // src/dependencies/app.dependencies.ts
 import { RepositoryContext } from '../data/context.ts';
-import { database } from '../data/db/client.ts';
+import { db } from '../data/db/client.ts';
 
-export const context = new RepositoryContext(database);
+/**
+ * Shared repositories for application handlers.
+ */
+export const context = new RepositoryContext(db);
 ```
 
-`data/db/client.ts` exports the configured database client that satisfies `ItemPersistence` in this example. Reuse the
-project's existing database module when present. Initialize the client and `context` once after configuration loads. Provide working
-queries and composition in generated projects. Compose services that use `context` in the same dependency module when a workflow needs them.
+Map validated input to an entity or domain update fields before calling the repository. See the [controller example](controller-pattern.md).
+When the application distinguishes conflicts, translate known constraint failures where the query runs. Preserve diagnostic causes for
+logging and keep driver details out of public responses.
 
 Use a service for workflows or external storage rather than moving datastore calls into a controller. Multi-row changes that form one
 invariant belong in a transaction; cross-system work needs explicit failure/retry semantics. Consult

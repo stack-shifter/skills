@@ -4,84 +4,66 @@ Keep controllers readable: consume validated inputs, call repositories or servic
 arrow functions and the shared `context`. Preserve local `try/catch` mappings when the repository already requires them; Express 5 can
 forward unexpected async failures automatically.
 
-## Connected CRUD Examples
+## Connected Item Handlers
 
-Route middleware validates the corresponding target before each handler. Use plain `RequestHandler` declarations and name the DTO type
-where the validated value is read. These annotations describe middleware output; they do not perform runtime validation. Successful writes
-return the existing response contract, including Location and bodyless 204 responses. Error examples assume the new Problem Details
-contract in [error-pattern.md](error-pattern.md); preserve established local envelopes instead when extending an existing API.
+The read route validates the original path parameter. The write routes use parsed body values because the schemas trim names. Use plain
+`RequestHandler` declarations and named input types where the handler reads values.
 
 ```ts
 // src/controllers/item.controller.ts
 import type { RequestHandler } from 'express';
 import { context } from '../dependencies/app.dependencies.ts';
-import type {
-  ItemPath, ItemQuery, ItemPostDto, ItemPutDto,
-} from '../models/validation/item.validation.ts';
-import { sendProblem } from '../utilities/problem-response.ts';
+import type { ItemPath, ItemPostDto, ItemPutDto } from '../models/validation/item.validation.ts';
 import { NotFoundError, ValidationError } from '../utilities/errors.ts';
+import { mapCreateItem } from '../utilities/mappers/item.mapper.ts';
 import { StatusCode } from '../utilities/status-code.ts';
 
-export const getItemsHandler: RequestHandler = async (
-  _request, response,
-): Promise<void> => {
-  const query: ItemQuery = response.locals.validated.query;
-  const page = await context.items.findAll(query);
-  response.status(StatusCode.OK).json(page);
-};
-
-export const getItemByIdHandler: RequestHandler = async (
-  _request, response, next,
-): Promise<void> => {
-  const { itemId }: ItemPath = response.locals.validated.params;
-  try {
-    const item = await context.items.findById(itemId);
-    if (!item) throw new NotFoundError('Item not found');
-    response.status(StatusCode.OK).json(item);
-  } catch (error: unknown) {
-    // Keep local error shaping when established; let the global handler cover other failures.
-    if (error instanceof NotFoundError) {
-      // This domain error guarantees a safe public message.
-      sendProblem(response, StatusCode.NOT_FOUND, error.message, { reason: 'ItemNotFound' });
-      return;
-    }
-    next(error);
+/**
+ * GET /v1/items/:itemId
+ * Returns the item selected by the validated path.
+ */
+export const getItemByIdHandler: RequestHandler = async (request, response) => {
+  const { itemId } = request.params as ItemPath;
+  const item = await context.items.findById(itemId);
+  if (!item) {
+    throw new NotFoundError('Item not found');
   }
+
+  response.status(StatusCode.OK).json(item);
 };
 
-export const createItemHandler: RequestHandler = async (
-  _request, response,
-): Promise<void> => {
-  const dto: ItemPostDto = response.locals.validated.body;
-  const item = await context.items.create(dto);
-  response.location(`/v1/items/${item.id}`).status(StatusCode.CREATED).json(item);
+/**
+ * POST /v1/items
+ * Creates an item and returns its location.
+ */
+export const createItemHandler: RequestHandler = async (_request, response) => {
+  const input: ItemPostDto = response.locals.validated.body;
+  const item = mapCreateItem(input);
+  const saved = await context.items.create(item);
+
+  response.location(`/v1/items/${saved.id}`).status(StatusCode.CREATED).json(saved);
 };
 
-export const updateItemHandler: RequestHandler = async (
-  _request, response,
-): Promise<void> => {
-  const { itemId }: ItemPath = response.locals.validated.params;
-  const dto: ItemPutDto = response.locals.validated.body;
-  if (itemId !== dto.id) {
-    throw new ValidationError('Id does not match. Unable to update item.');
+/**
+ * PUT /v1/items/:itemId
+ * Updates the item selected by the validated path.
+ */
+export const updateItemHandler: RequestHandler = async (request, response) => {
+  const { itemId } = request.params as ItemPath;
+  const input: ItemPutDto = response.locals.validated.body;
+  if (itemId !== input.id) {
+    throw new ValidationError('Item ID does not match the path');
   }
-  await context.items.update(itemId, dto);
-  response.status(StatusCode.NO_CONTENT).end();
-};
 
-export const deleteItemHandler: RequestHandler = async (
-  _request, response,
-): Promise<void> => {
-  const { itemId }: ItemPath = response.locals.validated.params;
-  await context.items.delete(itemId);
+  const changes = { name: input.name, modifiedAt: new Date().toISOString() };
+  await context.items.update(itemId, changes);
+
   response.status(StatusCode.NO_CONTENT).end();
 };
 ```
 
-Prefer plain `RequestHandler` for separately declared handlers and explicit DTO types on local variables. Avoid long positional generic
-arguments or extra locals types unless required. Inline route callbacks can use inferred Express types. See the official
-[TypeScript installation guidance](https://expressjs.com/en/5x/starter/installing/). Follow existing response contracts rather than replacing
-them with this example. Return immediately after a response when more code could execute; avoid double sends and `next()` after success.
+Use the path assertion only after the route has validated the original path. The global error handler maps `NotFoundError` to 404.
+Preserve controller-local mappings when an existing API uses them.
 
 Put record-ownership authorization before reads/writes when required, using trusted identity and repository queries that enforce the actual
 access boundary. A router's group authorization does not replace resource-level authorization.
@@ -98,9 +80,10 @@ import type { AuthenticatedRequest } from '../models/authenticated-request.ts';
 import { AuthenticationError } from '../utilities/errors.ts';
 import { StatusCode } from '../utilities/status-code.ts';
 
-export const getCurrentUserHandler: RequestHandler = async (
-  request: AuthenticatedRequest, response,
-): Promise<void> => {
+/**
+ * Returns the verified caller’s identifier.
+ */
+export const getCurrentUserHandler: RequestHandler = async (request: AuthenticatedRequest, response) => {
   const user = request.user;
   if (!user) {
     throw new AuthenticationError('Authentication required');
@@ -111,4 +94,4 @@ export const getCurrentUserHandler: RequestHandler = async (
 ```
 
 Mount this handler after `authorize()` in the existing router. The shared type does not authenticate callers, so check absent identity.
-Keep parsed inputs in `response.locals.validated`; extend the request type only for shared context the flow needs.
+Use the existing validation pipeline for body, path, and query values. Keep the shared request extension focused on identity.

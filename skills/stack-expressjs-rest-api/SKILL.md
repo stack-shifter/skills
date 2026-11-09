@@ -13,7 +13,9 @@ Deliver working Express API changes using this order of precedence:
 
 Keep examples and generated code simple: arrow functions, plain `RequestHandler` declarations, named DTOs on local variables, clear control
 flow, and small classes. Follow the project's module and import conventions. Avoid positional handler
-generics, endpoint-specific request types, speculative abstractions, and unrelated restructuring.
+generics, endpoint-specific request types, speculative abstractions, and unrelated restructuring. Prefer descriptive PascalCase type aliases
+for model shapes. Use multiline JSDoc for exported contracts, including single-sentence blocks. Separate logical groups with blank lines
+and add inline signposts when they explain meaningful steps.
 
 ## Error Contracts
 
@@ -28,121 +30,48 @@ hide unauthorized resources. Keep transport mapping out of services/repositories
 
 ## Repository Discovery
 
-Inspect the parts relevant to the request:
-
-- manifests, lockfiles, installed types, TypeScript configuration, relative imports, build and start scripts, and tests
-- app bootstrap, environment loading, router mounting, and route prefixes
-- controller conventions, middleware order, and shared status/error responses
-- schemas and whether parsed outputs reach application logic
-- authentication, groups/scopes, and resource-ownership checks
-- services, repositories, shared context, dependency composition, and pagination
-- established comments, JSDoc, and spacing
-
-State the approach briefly: **Existing pattern mode** extends local code; **Pattern generation mode** fills a missing pattern. Preserve
-compatible conventions, including controller-local error mapping and existing `dependencies/` modules. Fix incompatible behavior within the
-requested scope. Do not automatically migrate Express versions, module systems, or deployment platforms.
+Read the project's scripts, compiler settings, tests, and the app, route, and dependency wiring relevant to the change. Follow local
+conventions. Use the closest reference when a pattern is missing.
 
 ## Implementation
 
 1. Identify method, path, inputs, authorization, success/error responses, and required dependency access. Resolve material contract gaps
    before affected work; preserve established status codes, headers, payloads, and pagination.
-2. Extend the existing router and app mount. Keep prefixes consistent so `/v1` plus `/items` produces `/v1/items` exactly once.
-3. Validate body, path, and query before controller execution. For new patterns, store parsed output in `response.locals.validated` and read
-   it through local DTO annotations. A schema check does not mutate the original request; consume transformations, coercions, and defaults.
-   Preserve rejection-only validation when no downstream behavior relies on discarded output.
+2. Extend the existing router and app mount. For a new standalone API, export the Express app and each router directly. Mount
+   `app.use(express.json())` once before the routers that consume JSON. Keep prefixes consistent so `/v1` plus `/items` produces
+   `/v1/items` exactly once.
+3. Validate body, path, and query before the controller. Assign `safeParse()` to a named variable before checking `success`.
+   With rejection-only validation, handlers read the validated request values. When a handler needs Zod's transformations, coercions,
+   or defaults, use the project's parsed-output pipeline. For a new pipeline, use `response.locals.validated`. Keep the handoff consistent
+   for each input target and match the types to the values the handler reads.
 4. Authenticate protected routes and enforce groups/scopes and ownership where required. Use one shared `Request` extension for middleware-
    added identity; keep its fields optional until checked. Controllers that do not use identity keep ordinary handler declarations.
 5. Keep orchestration in controllers, domain workflows/integrations in services, and datastore requests, transactions, mapping, and cursor
    handling in repositories. Reuse the project's dependency wiring. In new apps, use `dependencies/app.dependencies.ts` to assemble
-   shared clients, the repository context, and services when needed. A simple CRUD controller can call the repository through `context`.
+   the shared repository context and any services. For Drizzle, define `export type Db = typeof db` beside the configured client and
+   use it in repository and context constructors. A simple CRUD controller can map its input to an entity and call the repository
+   through `context`.
 6. Reuse error/status utilities. For new patterns, let global error middleware translate typed errors; retain established local `try/catch`
    mappings. Keep parsing, validation, authentication, authorization, and unexpected failures consistent without exposing internal details.
-7. Load configuration before dependency initialization. Keep the app importable without starting a listener or loading developer env files;
-   process startup owns listening and shutdown. Filenames are examples: preserve an existing `app.ts` entrypoint when appropriate.
-
-Keep HTTP authorization middleware out of scheduled/background workers. Workers call application services with their own configuration.
-Database modeling is outside this skill; preserve required atomicity and recovery behavior at repository/service boundaries.
+7. Load configuration before dependency initialization. Let `app.ts` wire Express, `server.ts` own listening and shutdown, and the
+   database module own its connection settings and client. App imports can require dependency settings. Add startup probes and
+   environment schemas when a project requirement calls for them. Preserve the existing entrypoint and configuration conventions.
 
 ## Express 5 Baseline
 
-Follow supported project dependencies first. For a new project, use Node.js 24, Express 5, TypeScript, Zod 4, Helmet, and CORS middleware.
-Express 5 requires Node.js 18 or higher. Verify compatibility before using newer Node APIs.
-
-```bash
-npm init
-npm install express@5 zod@4 helmet cors
-npm install --save-dev typescript tsx @types/express@5 @types/node@24 @types/cors
-```
-
-Use the project's package manager. Add other dependencies for the selected features. The Cognito example requires `aws-jwt-verify`.
-
-- Rejected promises from async middleware/handlers reach error middleware automatically. Callback-based failures still need `next(error)`.
-- Error middleware must declare all four parameters and delegate when headers were already sent.
-- Use built-in `express.json()` for JSON requests. Add `express.urlencoded()` for form endpoints that accept URL-encoded bodies.
-  `req.body` may be undefined before parsing.
-- `req.query` is a getter in Express 5; do not use it as the destination for coerced values.
-- Named wildcards (`/*splat`, `/{*splat}`) and braces for optional segments (`/:file{.:ext}`) replace older route syntax.
-- Use shared status constants, `Location` for created resources, and bodyless 204 responses.
-- Preserve existing auth. For a new Cognito flow, use the connected verification and group middleware example.
-- Mount `helmet` and configure `cors` with the application's origin policy before parsing and auth. Set proxy trust only for the
-  actual trusted topology. See the app pattern for middleware selection.
-
-See the official [installation](https://expressjs.com/en/5x/starter/installing/),
-[migration](https://expressjs.com/en/guide/migrating-5/), and [error handling](https://expressjs.com/en/guide/error-handling/) guides.
-For new standalone projects, use ESM with `"type": "module"` and TypeScript `NodeNext`. The connected examples use explicit relative
-`.ts` imports and compile them to `.js` with `rewriteRelativeImportExtensions`. Use `import type` for declarations used only as types.
-Keep an existing project's compiler, module format, and import conventions. See the app reference for the full starter configuration.
-
-## Project Shape
-
-Use this layout when the project lacks an established structure. Add folders as features need them:
-
-```text
-src/
-├── app.ts
-├── server.ts
-├── controllers/
-├── data/
-│   ├── db/
-│   │   └── client.ts
-│   ├── context.ts
-│   └── repositories/
-├── dependencies/
-│   └── app.dependencies.ts
-├── middlewares/
-├── models/
-├── routes/
-├── services/
-├── utilities/
-└── workers/
-```
-
-Wire only the pieces needed: model → route → controller → service/repository → composition → app mount. Keep database clients out of
-controllers; use a shared repository context when repositories work together.
-
-## Environment and Startup
-
-Preserve existing configuration loading. For new projects, commit `.env.example` with all required keys and fictional/empty values;
-gitignore local `.env.development` and any optional `.env.production`. Production receives injected values.
-
-Prefer `tsx` for development in new TypeScript projects; preserve an existing working runner. Load local configuration before app imports:
-
-```bash
-tsx watch --env-file=.env.development src/server.ts
-```
-
-`tsx` runs without type checking; run `tsc --noEmit` separately and use compiled JavaScript for the production examples.
-If an existing bootstrap uses `process.loadEnvFile()`, keep it before dependency initialization. Do not duplicate env loading. See
-[app-pattern.md](references/app-pattern.md) for startup, scripts, environment examples, and a compatible build configuration.
+- Rejected async handlers reach error middleware. Pass callback-based failures to `next(error)`.
+- Keep four error-handler parameters and delegate when headers have already been sent.
+- Keep the project's module format and dependency versions. For a new standalone starter, use the [app pattern](references/app-pattern.md)
+  for dependencies, layout, ESM configuration, and startup commands.
 
 ## References
 
-Load only what the task needs. Preserve the connected code snippets when adapting these patterns:
+Load the references relevant to the change.
 
 - [app-pattern.md](references/app-pattern.md): middleware selection, app composition, ESM build configuration, startup, and environment loading.
 - [route-pattern.md](references/route-pattern.md): router paths, authorization, validation, and mounts.
 - [controller-pattern.md](references/controller-pattern.md): CRUD handlers, local error mapping, and shared request identity.
-- [middleware-pattern.md](references/middleware-pattern.md): authentication, parsed validation output, and global errors.
+- [middleware-pattern.md](references/middleware-pattern.md): authentication, rejection-only and parsed validation, and global errors.
 - [model-pattern.md](references/model-pattern.md): entities, DTOs, and schemas.
 - [error-pattern.md](references/error-pattern.md): shared errors and a minimal Problem Details response function.
 - [problem-details.md](references/problem-details.md): RFC members, optional extensions, validation mapping, and safety boundaries.
@@ -156,12 +85,7 @@ Load only what the task needs. Preserve the connected code snippets when adaptin
 
 ## Validate and Deliver
 
-Read the API review checklist. Run relevant tests, type checks, and build checks. Exercise real middleware through HTTP requests, including
-rejected inputs/auth, parsed output, and response contracts. Report unrun checks as unverified; local tests do not prove deployed auth or
-external integrations. Do not deploy as validation.
+Use the applicable checks in [api-review.md](references/api-review.md). Run the project's relevant tests, type checks, and build. Verify
+changed HTTP behavior through real middleware. Report what passed and any relevant checks you could not run.
 
-Under `stack-spec-workflow`, follow its active spec and approved Delivery Plan section (or legacy active plan). Record tasks, checks, and
-blockers there without competing plans or approval gates.
-
-Finish with implemented routes, meaningful configuration/contract changes, checks and results, and remaining limitations. Include useful
-snippets; when implementation is requested, complete the change rather than stopping at a proposal.
+If the task uses `stack-spec-workflow`, record progress and evidence in its active Delivery Plan.
